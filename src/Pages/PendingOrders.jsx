@@ -115,7 +115,7 @@ export default function PendingOrders() {
     
     console.log("Selecting order:", orderId);
     setSelectedOrderId(orderId);
-    setOrderDetailsEndpoint(`cashier/get_order/${orderId}`);
+    setOrderDetailsEndpoint(`api/admin/pos/sales/sales/pending/${orderId}`);
   };
 
   const formatDate = (dateString) => {

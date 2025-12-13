@@ -20,7 +20,7 @@ export function CashierButton({
 }) {
   const bgColor = isActive ? "bg-green-600" : "bg-white";
   const textColor = isActive ? "text-white" : "text-gray-700";
-  const hoverBg = isActive ? "hover:bg-green-700" : "hover:bg-[#750000]";
+  const hoverBg = isActive ? "hover:bg-green-700" : "hover:bg-[#7c5cc4]";
   const iconColor = isActive ? "text-white" : "text-[#910000]";
   const circleColor = isActive
     ? "bg-white border-white"

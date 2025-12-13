@@ -224,8 +224,8 @@ export default function Navbar() {
       const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
       // API واحدة بتعمل كل حاجة: تحقق الباسورد + تجيب التقرير
-      const response = await axios.post(
-        `${baseUrl}api/admin/cashier-shift/end/`,
+      const response = await axios.put(
+        `${baseUrl}api/admin/cashier-shift/end/report/`,
         { password },
         {
           headers: { Authorization: `Bearer ${token}` },
