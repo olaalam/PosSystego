@@ -451,7 +451,7 @@ export default function OrderSummary({
         className="bg-bg-primary text-white hover:bg-purple-700 text-lg px-8 py-3"
         disabled={isLoading || orderItemsLength === 0 || (orderType === "dine_in" && selectedPaymentCount === 0)}
       >
-        {t("Checkout")}
+        {t("Checkout&Print")}
       </Button>
 
       {/* باقي الأزرار */}

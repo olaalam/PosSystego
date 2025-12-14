@@ -71,7 +71,7 @@ export default function Cashier() {
     try {
 const response = await postData(`api/admin/pos-home/cashiers/select`, {cashier_id: _id}); 
 // استخدم نفس الـ key في كل مكان
-sessionStorage.setItem("financial_accounts", JSON.stringify(response?.data?.financialAccount || []));
+sessionStorage.setItem("financial_accounts", JSON.stringify(response?.data?.financialAccounts || []));
      navigate("/shift?action=open");
     } catch (err) {
       console.error("Error activating cashier:", err);

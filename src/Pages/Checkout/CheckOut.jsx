@@ -70,47 +70,87 @@ const CheckOut = ({
   const [selectedTaxId, setSelectedTaxId] = useState(null);
   const [freeDiscount, setFreeDiscount] = useState("");
 
-  // === QZ Tray Connection ===
+// === QZ Tray Connection ===
   useEffect(() => {
+    // 1. جلب التوكين (تأكد من اسم المفتاح الصحيح سواء token أو access_token)
+    const token = sessionStorage.getItem("token"); 
+
+    // إعداد الهيدر للإرسال
+    const authHeaders = {
+      "Authorization": `Bearer ${token}` // إضافة التوكين هنا
+    };
+
+    // 2. إعداد الـ Certificate
     qz.security.setCertificatePromise(function (resolve, reject) {
-      fetch("api/admin/qztray/cert")
-        .then((response) => response.text())
+      fetch(`${baseUrl}api/admin/qztray/cert`, {
+        method: "GET",
+        headers: authHeaders // <--- إرسال التوكين هنا
+      })
+        .then((response) => {
+          if (!response.ok) {
+            // إذا كان الخطأ 401، فهذا يعني أن التوكين غير صحيح أو منتهي
+            if (response.status === 401) {
+                throw new Error("401 Unauthorized: Please check login status.");
+            }
+            throw new Error(`Certificate Error: ${response.status}`);
+          }
+          return response.text();
+        })
         .then(resolve)
-        .catch(reject);
+        .catch((err) => {
+          console.error("❌ Failed to fetch certificate:", err);
+          reject(err);
+        });
     });
 
     qz.security.setSignatureAlgorithm("SHA512");
 
+    // 3. إعداد الـ Signature
     qz.security.setSignaturePromise(function (toSign) {
       return function (resolve, reject) {
         const apiUrl = `${baseUrl}api/admin/qztray/sign?request=${toSign}`;
 
-        fetch(apiUrl)
+        fetch(apiUrl, {
+          method: "GET",
+          headers: authHeaders // <--- إرسال التوكين هنا أيضاً
+        })
           .then((response) => {
             if (!response.ok) {
-              throw new Error(`Server returned ${response.status}`);
+              if (response.status === 401) {
+                  throw new Error("401 Unauthorized: Signature rejected.");
+              }
+              throw new Error(`Signature Error: ${response.status}`);
             }
             return response.text();
           })
           .then(resolve)
-          .catch(reject);
+          .catch((err) => {
+            console.error("❌ Failed to sign request:", err);
+            reject(err);
+          });
       };
     });
 
-    qz.websocket
-      .connect()
-      .then(() => {
-        console.log("✅ Connected to QZ Tray");
-      })
-      .catch((err) => {
-        console.error("❌ QZ Tray connection error:", err);
-        toast.error(t("QZTrayNotRunning"));
-      });
+    // 4. الاتصال
+    if (!qz.websocket.isActive()) {
+      qz.websocket
+        .connect()
+        .then(() => {
+          console.log("✅ Connected to QZ Tray");
+        })
+        .catch((err) => {
+          console.error("❌ QZ Tray connection error:", err);
+          // تجاهل الخطأ إذا كان بسبب التكرار، لكن اعرضه إذا كان اتصالاً فعلياً
+          // toast.error(t("QZTrayNotRunning")); 
+        });
+    }
 
     return () => {
-      qz.websocket.disconnect();
+      if (qz.websocket.isActive()) {
+        qz.websocket.disconnect();
+      }
     };
-  }, []);
+  }, [baseUrl, t]); // تمت إزالة token من الاعتماديات لتجنب إعادة الاتصال المتكررة إذا لم يكن ضرورياً
 
   const { postData, loading } = usePost();
 
@@ -361,7 +401,7 @@ const CheckOut = ({
 
     setPaymentSplits((prevSplits) => {
       const totalExcludingCurrent = prevSplits.reduce(
-        (acc, s) => (s.id === id ? acc : acc + s.amount),
+        (acc, s) => (s._id === _id ? acc : acc + s.amount),
         0
       );
       const maxAllowed = requiredTotal - totalExcludingCurrent;
@@ -492,6 +532,7 @@ payload = buildOrderPayload({
   cashierId,
   due,
   user_id: customer_id,
+  selectedTaxId: selectedTaxId,
   discount_id: selectedDiscountId,        // ← ده الـ ID بس (للخصم من القايمة)
   module_id: moduleId,
   free_discount: freeDiscountValue > 0 ? freeDiscountValue : undefined,

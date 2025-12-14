@@ -47,23 +47,10 @@ import logo from "@/assets/logo.png";
 
 function CustomerSearchCombobox({ customers, selectedCustomer, onSelect, t }) {
   const [open, setOpen] = useState(false);
+
   const selectedCustomerObj = customers.find(
     (customer) => customer._id === selectedCustomer
   );
-
-  // دالة مخصصة لفلترة العملاء بناءً على البحث (الاسم أو رقم الهاتف)
-  const filterCustomers = (searchValue, customer) => {
-    // توحيد النص للبحث
-    const normalizedSearch = searchValue.toLowerCase();
-    const customerName = (customer.name || "").toLowerCase();
-    const customerPhone = (customer.phone_number || "").toLowerCase();
-
-    // البحث في الاسم أو رقم الهاتف
-    if (customerName.includes(normalizedSearch) || customerPhone.includes(normalizedSearch)) {
-      return 1; // تطابق (احتفاظ بالنتيجة)
-    }
-    return 0; // لا يوجد تطابق
-  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -71,45 +58,54 @@ function CustomerSearchCombobox({ customers, selectedCustomer, onSelect, t }) {
         <Button
           variant="outline"
           role="combobox"
-          aria-expanded={open}
-          className="w-[200px] justify-between h-auto py-1 px-3 text-sm"
+          className="w-[220px] justify-between h-auto py-1 px-3 text-sm"
         >
           {selectedCustomerObj
-            ? selectedCustomerObj.name +
-              (selectedCustomerObj.phone_number ? ` (${selectedCustomerObj.phone_number})` : "")
+            ? `${selectedCustomerObj.name}${
+                selectedCustomerObj.phone_number
+                  ? ` (${selectedCustomerObj.phone_number})`
+                  : ""
+              }`
             : t("Select Customer")}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[250px] p-0">
-        {/* تحديد دالة filter المخصصة للبحث في أكثر من حقل */}
-        <Command filter={filterCustomers}>
-          <CommandInput placeholder={t("Search customer...")} />
-          <CommandEmpty>{t("No customer found")}.</CommandEmpty>
+
+      <PopoverContent className="w-[260px] p-0">
+        <Command
+          filter={(value, search) => {
+            if (!search) return 1;
+            return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
+          }}
+        >
+          <CommandInput placeholder={t("Search by name or phone")} />
+          <CommandEmpty>{t("No customer found")}</CommandEmpty>
+
           <CommandGroup className="max-h-[200px] overflow-y-auto">
             {customers.map((customer) => (
               <CommandItem
                 key={customer._id}
-                // تعيين قيمة البحث لتشمل الاسم ورقم الهاتف
-                value={`${customer.name} ${customer.phone_number}`} 
-                onSelect={(currentValue) => {
-                  
-                  // عند الاختيار، يجب العثور على الـ ID الصحيح للعميل
-                  const selectedId = customer._id; // طريقة أسهل وأكثر موثوقية: استخدام ID العنصر الذي تم النقر عليه
-                  
-                  onSelect(selectedId);
+                value={`${customer.name} ${customer.phone_number || ""}`}
+                onSelect={() => {
+                  onSelect(customer._id);
                   setOpen(false);
                 }}
               >
                 <Check
                   className={cn(
                     "mr-2 h-4 w-4",
-                    selectedCustomer === customer._id ? "opacity-100" : "opacity-0"
+                    selectedCustomer === customer._id
+                      ? "opacity-100"
+                      : "opacity-0"
                   )}
                 />
-                <div className="flex flex-col items-start">
-                    <span>{customer.name}</span>
-                    {customer.phone_number && <span className="text-xs text-gray-500">{customer.phone_number}</span>}
+                <div className="flex flex-col">
+                  <span>{customer.name}</span>
+                  {customer.phone_number && (
+                    <span className="text-xs text-gray-500">
+                      {customer.phone_number}
+                    </span>
+                  )}
                 </div>
               </CommandItem>
             ))}
@@ -119,6 +115,7 @@ function CustomerSearchCombobox({ customers, selectedCustomer, onSelect, t }) {
     </Popover>
   );
 }
+
 
 
 // ===============================================

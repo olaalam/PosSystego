@@ -74,7 +74,7 @@ export const buildFinancialsPayload = (paymentSplits, financialAccounts = []) =>
     const isVisa = account?.name?.toLowerCase().includes("visa");
 
     const payload = {
-      _id: split.account_id?.toString(), // أمان إضافي
+      account_id: split.account_id?.toString(), // ← تم تغيير _id إلى account_id
       amount: parseFloat(split.amount || 0).toFixed(2),
     };
 
@@ -104,7 +104,7 @@ export const getOrderEndpoint = (hasDealItems) => {
 export const buildOrderPayload = ({
   orderItems,
   amountToPay,
-  order_tax,           // ← ده الضريبة الأصلية من المنتجات (ممكن تكون 0)
+ order_tax,         
   notes,
   financialsPayload,
   cashierId,
@@ -114,7 +114,8 @@ export const buildOrderPayload = ({
   module_id,
   free_discount,
   due_module,
-  selectedTaxAmount = 0,   // ← القيمة الفعلية للضريبة اليدوية
+  selectedTaxAmount = 0,
+  selectedTaxId,   // ← القيمة الفعلية للضريبة اليدوية
   password,
 }) => {
   const products = orderItems.map(processProductItem);
@@ -122,20 +123,21 @@ export const buildOrderPayload = ({
   const customerId = user_id 
     ? user_id.toString() 
     : sessionStorage.getItem("selected_customer_id")?.toString() || undefined;
-
+const finalTaxAmount = selectedTaxAmount > 0
+    ? parseFloat(selectedTaxAmount).toFixed(2)
+    : order_tax ? parseFloat(order_tax).toFixed(2) : undefined
   const basePayload = {
     customer_id: customerId,
     order_pending: due,
     grand_total: parseFloat(amountToPay).toFixed(2),
     products,
     bundles: [],
-    account_id: financialsPayload.map(f => f._id),
+    financials: financialsPayload,
 
     // الضريبة: نستخدم الضريبة اليدوية لو موجودة، وإلا نستخدم اللي جاية من المنتجات
-    order_tax: selectedTaxAmount > 0 
-      ? parseFloat(selectedTaxAmount).toFixed(2)
-      : (order_tax > 0 ? parseFloat(order_tax).toFixed(2) : undefined),
-
+order_tax: selectedTaxId 
+        ? selectedTaxId.toString() 
+        : undefined,
     // الخصم: من القايمة (الـ ID بس)
     order_discount: discount_id ? discount_id.toString() : undefined,
 
