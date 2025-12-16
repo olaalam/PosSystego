@@ -39,8 +39,11 @@ const formatCashierReceipt = (receiptData) => {
   };
 
 
-  const showCustomerInfo = receiptData.customer && Object.keys(receiptData.customer).length > 0;
-
+const showCustomerInfo = receiptData.customer && 
+  (
+    (receiptData.customer.name && receiptData.customer.name.trim() !== "" && receiptData.customer.name !== "عميل نقدي") ||
+    (receiptData.customer.phone && receiptData.customer.phone.trim() !== "")
+  );
   return `
   <!DOCTYPE html>
   <html>
@@ -413,8 +416,25 @@ export const prepareReceiptData = (
             notes: "", 
             addons: [], 
             extras: [],
-            variations: productOptions, 
-        };
+variations: (() => {
+    if (!item.product_price_id?.code) return [];
+
+    // نفترض إن الكود شكله: "hoodie1_brown" أو "tshirt_large_red"
+    // بنقسم الكود عند الـ underscore وناخد الجزء الأخير (أو كله بعد الأساسي)
+    const code = item.product_price_id.code;
+    const parts = code.split('_');
+
+    // لو في أكتر من جزء، نعتبر اللي بعد الأول هو الـ variation
+    if (parts.length > 1) {
+        const variationPart = parts.slice(1).join(' '); // لو في أكتر من underscore
+        // نحولها لكابيتال أول حرف
+        return [{
+            name: variationPart.charAt(0).toUpperCase() + variationPart.slice(1).replace(/_/g, ' ')
+        }];
+    }
+
+    return [];
+})(),        };
     }),
 
     // الحسابات المالية (محدثة)

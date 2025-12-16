@@ -446,13 +446,23 @@ export default function OrderSummary({
   ) : (
     /* الحالة العادية: Checkout */
     <div className="flex gap-4 w-full">
-      <Button
-        onClick={onCheckout}
-        className="bg-bg-primary text-white hover:bg-purple-700 text-lg px-8 py-3"
-        disabled={isLoading || orderItemsLength === 0 || (orderType === "dine_in" && selectedPaymentCount === 0)}
-      >
-        {t("Checkout&Print")}
-      </Button>
+  {/* زر Checkout & Print (يطبع) */}
+  <Button
+    onClick={() => onCheckout(true)} // true = print
+    className="bg-bg-primary text-white hover:bg-purple-700 text-lg px-8 py-6 font-bold flex-1"
+    disabled={isLoading || orderItemsLength === 0 || (orderType === "dine_in" && selectedPaymentCount === 0)}
+  >
+    {isLoading ? <Loading /> : t("Checkout&Print")}
+  </Button>
+
+  {/* زر Checkout Only (بدون طباعة) */}
+  <Button
+    onClick={() => onCheckout(false)} // false = no print
+    className="bg-gray-600 text-white hover:bg-gray-700 text-lg px-8 py-6 font-bold flex-1"
+    disabled={isLoading || orderItemsLength === 0 || (orderType === "dine_in" && selectedPaymentCount === 0)}
+  >
+    {isLoading ? <Loading /> : t("CheckoutOnly")}
+  </Button>
 
       {/* باقي الأزرار */}
       {orderType === "dine_in" && allItemsDone && (
@@ -462,7 +472,7 @@ export default function OrderSummary({
       )}
 
       {(orderType === "take_away" || orderType === "delivery") && (
-        <Button onClick={onSaveAsPending} className="bg-teal-600 text-white hover:bg-teal-700 text-lg px-8 py-3">
+        <Button onClick={onSaveAsPending} className="bg-teal-600 text-white hover:bg-teal-700 text-lg px-8 py-6 flex-1">
           {t("SaveasPending")}
         </Button>
       )}

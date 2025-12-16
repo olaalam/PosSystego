@@ -44,7 +44,7 @@ export default function Card({
   const [selectedPaymentItems, setSelectedPaymentItems] = useState([]);
   const [bulkStatus, setBulkStatus] = useState("");
   const [itemLoadingStates, setItemLoadingStates] = useState({});
-
+const [shouldPrintReceipt, setShouldPrintReceipt] = useState(true); // ← جديد
   // Void Modal States
   const [showVoidModal, setShowVoidModal] = useState(false);
   const [voidItemId, setVoidItemId] = useState(null);
@@ -141,13 +141,10 @@ const clearPaidItemsOnly = () => {
 };
 
   // Handlers
-  const handleCheckOut = () => {
-    if (orderType === "dine_in" && selectedPaymentItems.length === 0) {
-      toast.warning(t("Pleaseselectitemstopayforfromthedoneitemslist"));
-      return;
-    }
-    setShowModal(true);
-  };
+const handleCheckOut = (print = true) => {
+  setShouldPrintReceipt(print);   // نحفظ هل نطبع أم لا
+  setShowModal(true);             // نفتح المودال
+};
 
 const handleClearAllItems = () => {
   if (orderItems.length === 0) {
@@ -368,6 +365,7 @@ onVoidItem={(itemId) => {
   amountToPay={calculations.amountToPay}
   selectedPaymentCount={selectedPaymentItems.length}
   onCheckout={handleCheckOut}
+  
   onSaveAsPending={() => orderActions.handleSaveAsPending(calculations.amountToPay, calculations.order_tax)}
   offerManagement={offerManagement}   // ده المهم
   isLoading={apiLoading}
@@ -479,6 +477,7 @@ onVoidItem={(itemId) => {
           clearPaidItemsOnly={clearPaidItemsOnly}
           selectedPaymentItemIds={selectedPaymentItems}
           service_fees={calculations.totalOtherCharge}
+          shouldPrintReceipt={shouldPrintReceipt}
         />
       )}
 
