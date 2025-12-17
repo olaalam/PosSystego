@@ -419,8 +419,6 @@ export const prepareReceiptData = (
 variations: (() => {
     if (!item.product_price_id?.code) return [];
 
-    // نفترض إن الكود شكله: "hoodie1_brown" أو "tshirt_large_red"
-    // بنقسم الكود عند الـ underscore وناخد الجزء الأخير (أو كله بعد الأساسي)
     const code = item.product_price_id.code;
     const parts = code.split('_');
 
