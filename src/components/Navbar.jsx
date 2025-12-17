@@ -21,6 +21,7 @@ import {
   CommandGroup,
   CommandInput,
   CommandItem,
+  CommandList,
 } from "@/components/ui/command";
 import {
   Popover,
@@ -79,37 +80,39 @@ function CustomerSearchCombobox({ customers, selectedCustomer, onSelect, t }) {
           }}
         >
           <CommandInput placeholder={t("Search by name or phone")} />
-          <CommandEmpty>{t("No customer found")}</CommandEmpty>
+          <CommandList>
+            <CommandEmpty>{t("No customer found")}</CommandEmpty>
 
-          <CommandGroup className="max-h-[200px] overflow-y-auto">
-            {customers.map((customer) => (
-              <CommandItem
-                key={customer._id}
-                value={`${customer.name} ${customer.phone_number || ""}`}
-                onSelect={() => {
-                  onSelect(customer._id);
-                  setOpen(false);
-                }}
-              >
-                <Check
-                  className={cn(
-                    "mr-2 h-4 w-4",
-                    selectedCustomer === customer._id
-                      ? "opacity-100"
-                      : "opacity-0"
-                  )}
-                />
-                <div className="flex flex-col">
-                  <span>{customer.name}</span>
-                  {customer.phone_number && (
-                    <span className="text-xs text-gray-500">
-                      {customer.phone_number}
-                    </span>
-                  )}
-                </div>
-              </CommandItem>
-            ))}
-          </CommandGroup>
+            <CommandGroup className="max-h-[200px] overflow-y-auto">
+              {customers.map((customer) => (
+                <CommandItem
+                  key={customer._id}
+                  value={`${customer.name} ${customer.phone_number || ""}`}
+                  onSelect={() => {
+                    onSelect(customer._id);
+                    setOpen(false);
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      selectedCustomer === customer._id
+                        ? "opacity-100"
+                        : "opacity-0"
+                    )}
+                  />
+                  <div className="flex flex-col">
+                    <span>{customer.name}</span>
+                    {customer.phone_number && (
+                      <span className="text-xs text-gray-500">
+                        {customer.phone_number}
+                      </span>
+                    )}
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
         </Command>
       </PopoverContent>
     </Popover>

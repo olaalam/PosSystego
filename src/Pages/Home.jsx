@@ -3,7 +3,7 @@ import TakeAway from "./TakeAway";
 import OrderPage from "./OrderPage";
 import { usePost } from "@/Hooks/usePost";
 import { useLocation } from "react-router-dom";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import { useTranslation } from "react-i18next"; 
 
 const getInitialState = () => {
@@ -97,8 +97,7 @@ const response = await postData("cashier/discount_module", {
 
   return (
     <div className="min-h-screen bg-white flex flex-col items-center">
-<ToastContainer/>   
-   {state.tabValue === "take_away" && (
+      {state.tabValue === "take_away" && (
         <TakeAway orderType={state.orderType} />
       )}
 

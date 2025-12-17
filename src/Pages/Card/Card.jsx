@@ -1,7 +1,7 @@
 // ============================================
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import { useTranslation } from "react-i18next";
 import { usePost } from "@/Hooks/usePost";
 
@@ -481,7 +481,6 @@ onVoidItem={(itemId) => {
         />
       )}
 
-      <ToastContainer />
       <div style={{ display: "none" }}>
   <div ref={printRef} className="print-area">
     <h2 style={{ textAlign: "center" }}>Order Summary</h2>

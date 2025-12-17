@@ -2,7 +2,6 @@ import { createBrowserRouter } from "react-router-dom";
 import Login from "./components/Login";
 import ProtAuth from "./components/Auth/ProtAuth";
 import MainLayouts from "./Layout/MainLayouts";
-import { SidebarProvider } from "./components/ui/sidebar";
 import AuthLayout from "./Layout/AuthLayout";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 import Home from "./Pages/Home";
@@ -38,11 +37,7 @@ const router = createBrowserRouter(
     },
 
     {
-      element: (
-        <SidebarProvider>
-          <MainLayouts />
-        </SidebarProvider>
-      ),
+      element: <MainLayouts />,
       children: [
         // for take away
         {

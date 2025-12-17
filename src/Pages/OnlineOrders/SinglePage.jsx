@@ -4,7 +4,7 @@ import { FaClock, FaUser, FaWhatsapp, FaCopy } from "react-icons/fa";
 import { Dialog, DialogBackdrop, DialogPanel } from "@headlessui/react";
 import { usePost } from "@/Hooks/usePost";
 import { useTranslation } from "react-i18next";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import { useGet } from "@/Hooks/useGet";
 import Loading from "@/components/Loading";
 import { IoClose, IoSearch } from "react-icons/io5";
@@ -367,12 +367,12 @@ const handleChangeStaus = async (id,orderStatus, reason) => {
                           <div className="w-full">
                             <div className="flex flex-wrap items-center justify-between w-full">
                               <h1 className="text-2xl text-gray-800 font-TextFontMedium">
-                                {t("Order")}{" "}
-                                <span className="text-bg-primary">
-                                  #{detailsData?.id || ""}
-                                </span>
-                              </h1>"
-                            </div>
+                            {t("Order")}{" "}
+                            <span className="text-bg-primary">
+                              #{detailsData?.id || ""}
+                            </span>
+                          </h1>
+                        </div>
                             {detailsData?.address && (
                               <p className="mt-1 text-sm text-gray-700">
                                 <span className="font-TextFontSemiBold">
