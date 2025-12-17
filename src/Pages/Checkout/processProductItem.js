@@ -110,6 +110,7 @@ export const buildOrderPayload = ({
   cashierId,
   due = 0,
   user_id,
+  customer_id,
   discount_id,
   module_id,
   free_discount,
@@ -120,15 +121,23 @@ export const buildOrderPayload = ({
 }) => {
   const products = orderItems.map(processProductItem);
 
-  const customerId = user_id 
-    ? user_id.toString() 
-    : sessionStorage.getItem("selected_customer_id")?.toString() || undefined;
+let customerId;
+if (customer_id) {
+  // الأولوية للـ customer_id اللي جاي explicit من الـ function call (حالة Due Order)
+  customerId = customer_id.toString();
+} else if (user_id) {
+  customerId = user_id.toString();
+} else {
+  customerId = sessionStorage.getItem("selected_customer_id")?.toString();
+}
+
+if (!customerId) customerId = undefined;
 const finalTaxAmount = selectedTaxAmount > 0
     ? parseFloat(selectedTaxAmount).toFixed(2)
     : order_tax ? parseFloat(order_tax).toFixed(2) : undefined
   const basePayload = {
     customer_id: customerId,
-    order_pending: due,
+     due,
     grand_total: parseFloat(amountToPay).toFixed(2),
     products,
     bundles: [],

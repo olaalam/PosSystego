@@ -35,7 +35,7 @@ const ProductCard = ({ product, onAddToOrder, onOpenModal }) => {
       {/* Clickable image and name - Opens Modal */}
       <div onClick={() => onOpenModal(product)} className="cursor-pointer">
         <img
-          src={product.image_link }
+          src={product.image}
           alt={product.name}
           className="w-full h-32 object-cover"
         />

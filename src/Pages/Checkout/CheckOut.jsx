@@ -166,21 +166,22 @@ const CheckOut = ({
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [customerSearchQuery, setCustomerSearchQuery] = useState("");
 
-  const {
-    data: dueUsersData,
-    loading: customerSearchLoading,
-    refetch: refetchDueUsers,
-  } = useGet(`cashier/list_due_users?search=${customerSearchQuery}`);
+const {
+  data: dueUsersData,
+  loading: customerSearchLoading,
+  refetch: refetchDueUsers,
+} = useGet(`api/admin/pos-home/selections`);
 
-  const searchResults = useMemo(() => {
-    const users = dueUsersData?.users || [];
-    return users.filter(
-      (c) =>
-        c.name.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
-        c.phone.includes(customerSearchQuery) ||
-        (c.phone_2 && c.phone_2.includes(customerSearchQuery))
-    );
-  }, [dueUsersData, customerSearchQuery]);
+const searchResults = useMemo(() => {
+  // التغيير الوحيد: dueCustomers بدل users
+  const customers = dueUsersData?.data?.dueCustomers || [];
+
+  return customers.filter((c) =>
+    c.name?.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
+    c.phone_number?.includes(customerSearchQuery)
+    // لو في phone_2 ممكن تضيفه هنا لو موجود في الـ API
+  );
+}, [dueUsersData, customerSearchQuery]);
 
   const { selectedDiscountAmount, finalSelectedDiscountId } = useMemo(() => {
     const discountList = discountListData?.data?.discounts || [];
@@ -532,7 +533,7 @@ const proceedWithOrderSubmission = async (
       financialsPayload,
       cashierId,
       due,
-      user_id: customer_id,
+      customer_id: customer_id || selectedCustomer?._id,
       selectedTaxId: selectedTaxId,
       discount_id: selectedDiscountId,
       module_id: moduleId,
@@ -599,20 +600,23 @@ const proceedWithOrderSubmission = async (
   }
 };
 
-  const handleSelectCustomer = async (customer) => {
-    if (requiredTotal > customer.can_debit) {
-      toast.error(
-        t("OrderExceedsDebitLimit", { amount: requiredTotal.toFixed(2) })
-      );
-      return;
-    }
+const handleSelectCustomer = async (customer) => {
+  // عرض تحذير بس مش منع (لو عايزة تسمحي بالدين حتى لو زاد)
+  if (customer.amount_Due && requiredTotal > 0) {
+    const newTotalDue = customer.amount_Due + requiredTotal;
+    toast.info(
+      t("CustomerCurrentDue", { 
+        current: customer.amount_Due.toFixed(2),
+        new: newTotalDue.toFixed(2)
+      })
+    );
+  }
 
-    setSelectedCustomer(customer);
-    setCustomerSelectionOpen(false);
+  setSelectedCustomer(customer);
+  setCustomerSelectionOpen(false);
 
-    await proceedWithOrderSubmission(1, customer._id);
-  };
-
+ await proceedWithOrderSubmission(1, customer._id);
+};
   const handleSubmitOrder = async () => {
     if (!isTotalMet || totalScheduled === 0) {
       return toast.error(
