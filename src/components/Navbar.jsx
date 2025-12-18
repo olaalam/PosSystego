@@ -199,7 +199,9 @@ export default function Navbar() {
       navigate("/", { replace: true });
     } else if (value === "online-order") {
       navigate("/online-orders", { replace: true });
-    }
+    }else if (value === "return") {
+    navigate("/return-sale", { replace: true }); // الصفحة الجديدة
+  }
   };
 
   const handleDueUsers = () => navigate("/due");
@@ -370,7 +372,13 @@ export default function Navbar() {
                 >
                   {t("take_away")}
                 </TabsTrigger>
-
+{/* التاب الجديدة: Return */}
+  <TabsTrigger
+    value="return"
+    className="px-3 py-1 text-sm font-semibold bg-white text-bg-primary border border-bg-primary data-[state=active]:bg-bg-primary data-[state=active]:text-white transition-colors duration-200"
+  >
+    {t("Return") || "Return"} {/* لو مفيش ترجمة، هيظهر Return */}
+  </TabsTrigger>
 
               </TabsList>
             </Tabs>

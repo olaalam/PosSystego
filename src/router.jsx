@@ -18,6 +18,7 @@ import DueUsers from "./Pages/Due/DueUsers";
 import AllOrders from "./Pages/AllOrders/AllOrders";
 import SinglePage from "./Pages/OnlineOrders/SinglePage";
 import OnlineTabs from "./Pages/OnlineOrders/OnlineTabs";
+import ReturnSalePage from "./Pages/Return/ReturnSalePage";
 
 const router = createBrowserRouter(
   [
@@ -192,6 +193,7 @@ const router = createBrowserRouter(
             </ProtectedRoute>
           )
         },
+       { path:"/return-sale" ,element:(<ReturnSalePage />)}
       ],
     },
   ],
