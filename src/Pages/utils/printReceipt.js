@@ -241,27 +241,30 @@ ${showCustomerInfo ? `
         <table class="items-table">
             <thead>
                 <tr>
-                    <th width="65%" style="text-align: ${isArabic ? "right" : "left"};">${isArabic ? "الصنف" : "Item"}</th>
-                    <th width="10%">${isArabic ? "ع" : "Qt"}</th>
-                    <th width="25%">${isArabic ? "إجمالي" : "Total"}</th>
+                    <th width="45%" style="text-align: ${isArabic ? "right" : "left"};">${isArabic ? "الصنف" : "Item"}</th>
+                    <th width="15%">${isArabic ? "سعر" : "Price"}</th>
+                    <th width="15%">${isArabic ? "ع" : "Qty"}</th>
+                    <th width="20%">${isArabic ? "إجمالي" : "Total"}</th>
                 </tr>
             </thead>
             <tbody>
             ${receiptData.items.map((item) => {
                 const productName = isArabic && item.nameAr ? item.nameAr : item.name;
+                const unitPrice = (item.total / item.qty).toFixed(2); // سعر القطعة = الإجمالي ÷ الكمية
                 
-                // === استدعاء دالة تنسيق الـ Variations هنا ===
+                // تنسيق الـ Variations
                 const variationsHTML = formatVariationsHTML(item.variations);
-                // ========================================
 
                 return `
                   <tr>
-                   
                     <td class="item-name" style="text-align: ${isArabic ? "right" : "left"};">
                       ${productName}
-                      
-                      ${variationsHTML} </td>
-                     <td class="item-qty">${item.qty}</td>
+                      ${variationsHTML}
+                    </td>
+                    <td class="item-price" style="text-align: center; font-weight: bold;">
+                      ${unitPrice}
+                    </td>
+                    <td class="item-qty">${item.qty}</td>
                     <td class="item-total">${item.total.toFixed(2)}</td>
                   </tr>
                 `;

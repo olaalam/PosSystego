@@ -378,7 +378,7 @@ const searchResults = useMemo(() => {
     setDiscountError(null);
 
     try {
-      const response = await postData("cashier/check_discount_code", {
+      const response = await postData("api/admin/coupon", {
         code: discountCode,
       });
       if (response.success) {
