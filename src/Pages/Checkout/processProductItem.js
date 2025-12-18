@@ -108,7 +108,7 @@ export const buildOrderPayload = ({
   notes,
   financialsPayload,
   cashierId,
-  due = 0,
+  Due = 0,
   user_id,
   customer_id,
   discount_id,
@@ -137,7 +137,7 @@ const finalTaxAmount = selectedTaxAmount > 0
     : order_tax ? parseFloat(order_tax).toFixed(2) : undefined
   const basePayload = {
     customer_id: customerId,
-     due,
+     Due,
     grand_total: parseFloat(amountToPay).toFixed(2),
     products,
     bundles: [],

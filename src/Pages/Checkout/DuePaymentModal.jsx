@@ -8,18 +8,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useGet } from "@/Hooks/useGet";
 import { toast } from "react-toastify";
+
 const DuePaymentModal = ({
   isOpen,
   onClose,
   customer,
   requiredTotal,
   onConfirm,
- refetch,
+  refetch,
 }) => {
-  const branch_id = sessionStorage.getItem("branch_id");
-  const { data } = useGet(`captain/selection_lists?branch_id=${branch_id}`);
+  // جلب الحسابات من sessionStorage
+  const financialAccounts = JSON.parse(sessionStorage.getItem("financial_accounts") || "[]");
+
   const [splits, setSplits] = useState([]);
 
   // حساب المبلغ المدفوع الآن
@@ -27,26 +28,25 @@ const DuePaymentModal = ({
     return splits.reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0);
   }, [splits]);
 
-  // حساب المبلغ المتبقي (الآجل)
+  // المتبقي آجل
   const dueAmount = requiredTotal - paidNow;
 
   // إضافة طريقة دفع افتراضية عند فتح المودال
   useEffect(() => {
-    if (data?.financial_account?.length > 0 && splits.length === 0) {
-      const defaultAcc = data.financial_account[0];
+    if (financialAccounts.length > 0 && splits.length === 0) {
+      const defaultAcc = financialAccounts[0];
       setSplits([
         {
-          id: "due-split-1",
-          accountId: defaultAcc.id,
+          splitId: "due-split-1",        // غيرنا id إلى splitId عشان ما يتلخبطش مع _id بتاع الحساب
+          accountId: defaultAcc._id,     // هنا _id مش id
           amount: 0,
           description: "",
         },
       ]);
     }
-  }, [data]);
+  }, [financialAccounts]);
 
-  // تحديث المبلغ لطريقة دفع معينة
-  const handleAmountChange = (id, value) => {
+  const handleAmountChange = (splitId, value) => {
     const num = parseFloat(value) || 0;
     if (num < 0) {
       toast.error("Amount cannot be negative.");
@@ -54,7 +54,7 @@ const DuePaymentModal = ({
     }
 
     const totalOthers = splits.reduce(
-      (sum, s) => (s.id === id ? sum : sum + s.amount),
+      (sum, s) => (s.splitId === splitId ? sum : sum + (parseFloat(s.amount) || 0)),
       0
     );
     const maxAllowed = requiredTotal - totalOthers;
@@ -64,90 +64,92 @@ const DuePaymentModal = ({
       return;
     }
 
-    setSplits((prev) => prev.map((s) => (s.id === id ? { ...s, amount: num } : s)));
+    setSplits((prev) =>
+      prev.map((s) => (s.splitId === splitId ? { ...s, amount: num } : s))
+    );
   };
 
-  // تغيير الحساب المالي (كاش، فيزا، إلخ)
-  const handleAccountChange = (id, accId) => {
+  const handleAccountChange = (splitId, accId) => {
     setSplits((prev) =>
       prev.map((s) =>
-        s.id === id ? { ...s, accountId: parseInt(accId), description: "" } : s
+        s.splitId === splitId
+          ? { ...s, accountId: accId, description: "" }  // هنا accId جاي string من Select، هنحوله لاحقًا لو لازم
+          : s
       )
     );
   };
 
-  // تحديث وصف الدفع (آخر 4 أرقام للفيزا)
-  const handleDescriptionChange = (id, value) => {
+  const handleDescriptionChange = (splitId, value) => {
     setSplits((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, description: value } : s))
+      prev.map((s) => (s.splitId === splitId ? { ...s, description: value } : s))
     );
   };
 
-  // إضافة طريقة دفع جديدة
   const handleAddSplit = () => {
-    const defaultAcc = data.financial_account[0]?.id;
-    if (!defaultAcc) return toast.error("No accounts available.");
+    if (financialAccounts.length === 0) {
+      return toast.error("No financial accounts available.");
+    }
+    const defaultAcc = financialAccounts[0];
     setSplits((prev) => [
       ...prev,
       {
-        id: `due-split-${Date.now()}`,
-        accountId: defaultAcc,
+        splitId: `due-split-${Date.now()}`,
+        accountId: defaultAcc._id,
         amount: 0,
         description: "",
       },
     ]);
   };
 
-  // حذف طريقة دفع
-  const handleRemoveSplit = (id) => {
-    setSplits((prev) => prev.filter((s) => s.id !== id));
+  const handleRemoveSplit = (splitId) => {
+    setSplits((prev) => prev.filter((s) => s.splitId !== splitId));
   };
 
-  // الحصول على اسم الحساب من ID
+  // جلب اسم الحساب من _id
   const getAccountNameById = (accountId) => {
-    const acc = data?.financial_account?.find((a) => a.id === parseInt(accountId));
+    const acc = financialAccounts.find((a) => a._id === accountId);
     return acc ? acc.name : "Select Account";
   };
 
-  // التحقق من ضرورة إدخال وصف (للفيزا)
+  // تحديد إذا كان الحساب يحتاج آخر 4 أرقام (فيزا مثلاً)
   const getDescriptionStatus = (accountId) => {
-    const acc = data?.financial_account?.find((a) => a.id === parseInt(accountId));
-    return acc?.description_status === 1;
+    const acc = financialAccounts.find((a) => a._id === accountId);
+    return acc?.description_status === 1 || acc?.description_status === true;
   };
 
-  // التحقق من صحة البيانات المدخلة
   const validateSplits = () => {
     for (const split of splits) {
       if (
         getDescriptionStatus(split.accountId) &&
         (!split.description || !/^\d{4}$/.test(split.description))
       ) {
-        toast.error(`Please enter exactly 4 digits for the Visa card.`);
+        toast.error("Please enter exactly 4 digits for the Visa card.");
         return false;
       }
     }
     return true;
   };
 
-  // تأكيد الدفع
-const handleConfirm = () => {
-  if (!validateSplits()) return;
+  const handleConfirm = () => {
+    if (!validateSplits()) return;
 
-  // المبلغ اللي اتدفع دلوقتي
-  const totalPaidNow = splits.reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0);
+    const totalPaidNow = splits.reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0);
+    const remainingDue = requiredTotal - totalPaidNow;
 
-  // المتبقي آجل بعد الدفعة دي
-  const remainingDue = requiredTotal - totalPaidNow;
+    if (totalPaidNow <= 0) {
+      toast.error("Please enter an amount greater than 0");
+      return;
+    }
 
-  // لو مفيش دفع خالص → منعه
-  if (totalPaidNow <= 0) {
-    toast.error("Please enter an amount greater than 0");
-    return;
-  }
+    // نرجع splits مع accountId كـ string (زي ما الـ backend بيحبه عادة)
+    const formattedSplits = splits.map((s) => ({
+      accountId: s.accountId,
+      amount: s.amount,
+      description: s.description || "",
+    }));
 
-  // تبعت: splits + المبلغ المدفوع + المتبقي
-  onConfirm(splits, totalPaidNow, remainingDue);
-};
+    onConfirm(formattedSplits, totalPaidNow, remainingDue);
+  };
 
   if (!isOpen) return null;
 
@@ -162,14 +164,13 @@ const handleConfirm = () => {
           Partial Payment & Due
         </h2>
 
-        {/* معلومات الطلب */}
         <div className="mb-6 p-4 bg-gray-50 rounded-lg">
           <p className="text-sm font-medium mb-2">
-            Customer: <strong>{customer?.name}</strong> ({customer?.phone})
+            Customer: <strong>{customer?.name}</strong> ({customer?.phone_number || customer?.phone || "N/A"})
           </p>
           <div className="space-y-1 text-sm">
             <div className="flex justify-between">
-              <span>Total Order:</span>
+              <span>Total Due:</span>
               <span className="font-bold">{requiredTotal.toFixed(2)} EGP</span>
             </div>
             <div className="flex justify-between text-green-600">
@@ -177,28 +178,26 @@ const handleConfirm = () => {
               <span>{paidNow.toFixed(2)} EGP</span>
             </div>
             <div className="flex justify-between text-purple-600 font-bold">
-              <span>Due Amount:</span>
+              <span>Remaining Due:</span>
               <span>{dueAmount.toFixed(2)} EGP</span>
             </div>
           </div>
         </div>
 
-        {/* طرق الدفع */}
         <div className="space-y-4">
           {splits.map((split) => (
-            <div key={split.id} className="flex items-center space-x-3">
-              {/* اختيار الحساب */}
+            <div key={split.splitId} className="flex items-center space-x-3">
               <div className="w-40">
                 <Select
-                  value={String(split.accountId)}
-                  onValueChange={(val) => handleAccountChange(split.id, val)}
+                  value={split.accountId}
+                  onValueChange={(val) => handleAccountChange(split.splitId, val)}
                 >
                   <SelectTrigger>
                     <SelectValue>{getAccountNameById(split.accountId)}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {data?.financial_account?.map((acc) => (
-                      <SelectItem key={acc.id} value={String(acc.id)}>
+                    {financialAccounts.map((acc) => (
+                      <SelectItem key={acc._id} value={acc._id}>
                         {acc.name}
                       </SelectItem>
                     ))}
@@ -206,13 +205,13 @@ const handleConfirm = () => {
                 </Select>
               </div>
 
-              {/* المبلغ */}
               <div className="relative flex-grow">
                 <Input
                   type="number"
                   min="0"
-                  value={split.amount === 0 ? "" : String(split.amount)}
-                  onChange={(e) => handleAmountChange(split.id, e.target.value)}
+                  placeholder="0.00"
+                  value={split.amount === 0 ? "" : split.amount}
+                  onChange={(e) => handleAmountChange(split.splitId, e.target.value)}
                   className="pl-14"
                 />
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
@@ -220,24 +219,22 @@ const handleConfirm = () => {
                 </span>
               </div>
 
-              {/* آخر 4 أرقام للفيزا */}
               {getDescriptionStatus(split.accountId) && (
                 <Input
                   type="text"
-                  placeholder="Last 4 digits"
+                  placeholder="Last 4"
                   value={split.description}
-                  onChange={(e) => handleDescriptionChange(split.id, e.target.value)}
+                  onChange={(e) => handleDescriptionChange(split.splitId, e.target.value)}
                   maxLength={4}
                   className="w-24"
                 />
               )}
 
-              {/* زر الحذف */}
               {splits.length > 1 && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => handleRemoveSplit(split.id)}
+                  onClick={() => handleRemoveSplit(split.splitId)}
                 >
                   ×
                 </Button>
@@ -245,8 +242,7 @@ const handleConfirm = () => {
             </div>
           ))}
 
-          {/* زر إضافة طريقة دفع */}
-          {paidNow < requiredTotal && (
+          {paidNow < requiredTotal && financialAccounts.length > 0 && (
             <Button
               variant="link"
               onClick={handleAddSplit}
@@ -257,14 +253,13 @@ const handleConfirm = () => {
           )}
         </div>
 
-        {/* أزرار التحكم */}
         <div className="flex space-x-3 mt-6">
           <Button variant="outline" onClick={onClose} className="flex-1">
             Cancel
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={dueAmount < 0}
+            disabled={dueAmount < 0 || paidNow <= 0}
             className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
           >
             Confirm Due Payment

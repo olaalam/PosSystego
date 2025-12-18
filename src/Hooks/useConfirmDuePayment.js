@@ -11,41 +11,45 @@ export const useConfirmDuePayment = ({
 }) => {
   const { postData } = usePost();
 
-  const handleConfirmDuePayment = async (splits, dueAmt, selectedCustomer = null) => {
-    // Validate selectedCustomer
-    if (!selectedCustomer || !selectedCustomer.id) {
-      toast.error("Customer information is missing. Please try again.");
+  const handleConfirmDuePayment = async (splits, paidNow, selectedCustomer, remainingDue) => {
+    // التأكد من وجود العميل
+    if (!selectedCustomer || !selectedCustomer._id) {
+      toast.error("Customer information is missing.");
       return;
     }
 
-    setDueSplits(splits);
-    setDueAmount(dueAmt);
-
-    const formData = new FormData();
-    formData.append("user_id", selectedCustomer.id.toString());
-    formData.append("amount", dueAmt.toString());
-
-    splits.forEach((split, index) => {
-      formData.append(`financials[${index}][id]`, split.accountId.toString());
-      formData.append(`financials[${index}][amount]`, split.amount.toString());
-      if (split.description) {
-        formData.append(`financials[${index}][description]`, split.description);
-      }
-    });
+    // البيانات اللي هنبعتها كـ JSON
+    const payload = {
+      customer_id: selectedCustomer._id,
+      amount: paidNow, // المبلغ اللي اتدفع دلوقتي
+      financials: splits.map((split) => ({
+        account_id: split.accountId,        // string _id من Mongo
+        amount: split.amount,
+        description: split.description || "",
+      })),
+    };
 
     try {
-      await postData("cashier/customer/pay_debit", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      toast.success("Due order processed successfully!");
+      // نبعت كـ JSON عادي (مش FormData)
+      await postData("api/admin/pos/sales/pay-due", payload);
+
+      toast.success("Payment successful. Remaining: " + remainingDue.toFixed(2) + " EGP");
+
+      // refetch عشان يختفي العميل من القايمة لو خلص الدين
       if (typeof refetch === "function") {
-    refetch();
-  }
-      onClearCart();
+        refetch();
+      }
+
+      // إعادة تعيين الحالة
+      setDueSplits([]);
+      setDueAmount(0);
+
+      onClearCart?.();
       onClose();
+
     } catch (e) {
       console.error("Due payment error:", e);
-      toast.error(e.message || "Failed to process due payment.");
+      toast.error(e?.message || "Failed to process payment.");
     }
   };
 

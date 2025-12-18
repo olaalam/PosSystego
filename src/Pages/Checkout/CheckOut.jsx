@@ -61,7 +61,7 @@ const CheckOut = ({
     if (isNaN(groupId)) return false;
 
     const selectedGroup = groupProducts.find((g) => g.id === groupId);
-    return selectedGroup?.due === 1;
+    return selectedGroup?.Due === 1;
   })();
 
   const { data: discountListData, loading: discountsLoading } =
@@ -494,7 +494,7 @@ const searchResults = useMemo(() => {
   };
 
 const proceedWithOrderSubmission = async (
-  due = 0,
+  Due = 0,
   customer_id = undefined,
   dueModuleValue = 0,
   forcedPassword = null
@@ -532,7 +532,7 @@ const proceedWithOrderSubmission = async (
       notes: orderNotes.trim() || "No special instructions",
       financialsPayload,
       cashierId,
-      due,
+      Due,
       customer_id: customer_id || selectedCustomer?._id,
       selectedTaxId: selectedTaxId,
       discount_id: selectedDiscountId,
@@ -551,7 +551,7 @@ const proceedWithOrderSubmission = async (
 
     if (response?.success) {
       // نجاح الطلب
-      toast.success(due === 1 ? t("DueOrderCreated") : t("OrderPlaced"));
+      toast.success(Due === 1 ? t("DueOrderCreated") : t("OrderPlaced"));
       setPendingFreeDiscountPassword("");
 
       // دالة التنظيف والإغلاق (مشتركة)
@@ -560,7 +560,7 @@ const proceedWithOrderSubmission = async (
         onClose();
       };
 
-      if (due === 0) {
+      if (Due === 0) {
         // طلب عادي (مش آجل)
         const receiptData = prepareReceiptData(
           safeOrderItems,
