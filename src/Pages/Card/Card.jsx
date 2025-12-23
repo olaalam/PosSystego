@@ -5,7 +5,7 @@ import { toast } from "react-toastify";
 import { useTranslation } from "react-i18next";
 import { usePost } from "@/Hooks/usePost";
 
-// Components
+// Component
 import Loading from "@/components/Loading";
 import CheckOut from "../Checkout/CheckOut";
 import CardHeader from "./CardHeader";
