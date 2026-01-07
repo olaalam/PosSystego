@@ -34,29 +34,32 @@ const CompactStatCard = ({ icon: Icon, title, value }) => (
 // ─── مكون تقرير الطباعة المنفصل ───
 const PrintableReport = React.forwardRef(({ reportData, t, formatAmount, isArabic }, ref) => {
   const apiData = reportData?.data || reportData;
-  const shift = apiData?.shift;
+  const message = apiData?.message || "";
+  const shift = apiData?.shift || {};
   const financialSummary = apiData?.report?.financialSummary || {};
   const ordersSummary = apiData?.report?.ordersSummary || {};
   const expenses = apiData?.report?.expenses || { rows: [], total: 0 };
 
-  const financial_accounts = [
-    {
-      financial_id: "cash",
-      financial_name: t("Cash") || "Cash",
-      total_amount: financialSummary.cash?.amount || 0,
-    },
-    {
-      financial_id: "vodafone",
-      financial_name: "Vodafone Cash",
-      total_amount: financialSummary.vodafoneCash?.amount || 0,
-    }
-  ].filter(acc => acc.total_amount > 0);
+  // استخراج الحسابات المالية من accounts array (ديناميكيًا)
+  const financial_accounts = (financialSummary.accounts || [])
+    .filter(acc => (acc.salesAmount || 0) > 0)
+    .map(acc => ({
+      financial_id: acc.account_id || acc.name,
+      financial_name: acc.name === "cash" ? t("Cash") : acc.name.charAt(0).toUpperCase() + acc.name.slice(1).replace("_", " "),
+      total_amount: acc.salesAmount || 0,
+    }));
 
-  const grand_total = shift?.total_sale_amount || financialSummary.netCashInDrawer || 0;
-  const netCashInDrawer = shift?.net_cash_in_drawer || financialSummary.netCashInDrawer || grand_total;
+  const totalSales = financialSummary.totals?.totalSales || 0;
+  const totalExpenses = financialSummary.totals?.totalExpenses || expenses.total || 0;
+  const netCashInDrawer = financialSummary.totals?.netCashInDrawer || totalSales - totalExpenses;
   const expenses_list = expenses.rows || [];
-  const expenses_total = expenses.total || 0;
   const total_orders = ordersSummary.totalOrders || 0;
+
+  // مدة الشيفت (إذا كان مفتوحًا → "إلى الآن")
+  const shiftStart = shift.start_time ? new Date(shift.start_time).toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' }) : "";
+  const shiftEnd = shift.end_time 
+    ? new Date(shift.end_time).toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' })
+    : t("Now") || "الآن";
 
   return (
     <div ref={ref} className="print-report-container" style={{ display: 'none' }}>
@@ -92,24 +95,24 @@ const PrintableReport = React.forwardRef(({ reportData, t, formatAmount, isArabi
           .print-expense-total td { border: 2px solid #333 !important; }
           * { opacity: 1 !important; }
         }
-      `}
+        `}
       </style>
       <div className="print-wrapper">
         {/* Header */}
         <div className="print-header">
-          <div className="print-title">📋 {t("EndShiftReport")}</div>
+          <div className="print-title">📋 {t("EndShiftReport")} {message.includes("preview") ? `(${t("Preview")})` : ""}</div>
           <div style={{ fontSize: '10px', marginTop: '4px' }}>
             {new Date().toLocaleDateString(isArabic ? 'ar-EG' : 'en-US')} - {new Date().toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
           </div>
         </div>
 
         {/* Shift Info */}
-        {shift && (
+        {shift.start_time && (
           <div className="print-section">
             <div className="print-section-title">📊 {t("ShiftInfo")}</div>
             <div className="print-row">
               <span>{t("ShiftDuration")}:</span>
-              <strong>من {new Date(shift.start_time).toLocaleTimeString()} إلى {new Date(shift.end_time).toLocaleTimeString()}</strong>
+              <strong>{t("From")} {shiftStart} {t("To")} {shiftEnd}</strong>
             </div>
             <div className="print-row">
               <span>{t("TotalOrders")}:</span>
@@ -132,7 +135,7 @@ const PrintableReport = React.forwardRef(({ reportData, t, formatAmount, isArabi
           <div className="print-divider" />
           <div className="print-row" style={{ fontSize: '12px', fontWeight: 'bold' }}>
             <span>{t("TotalCashInShift")}</span>
-            <span>{formatAmount(grand_total)}</span>
+            <span>{formatAmount(totalSales)}</span>
           </div>
         </div>
 
@@ -158,7 +161,7 @@ const PrintableReport = React.forwardRef(({ reportData, t, formatAmount, isArabi
                 ))}
                 <tr className="print-expense-total">
                   <td colSpan="2">{t("TotalExpenses")}</td>
-                  <td>-{formatAmount(expenses_total)}</td>
+                  <td>-{formatAmount(totalExpenses)}</td>
                 </tr>
               </tbody>
             </table>
@@ -193,31 +196,32 @@ export default function EndShiftReportModal({ reportData, onClose, onConfirmClos
   const printRef = useRef(null);
 
   const apiData = reportData?.data || reportData;
-  const shift = apiData?.shift;
+  const message = apiData?.message || "";
+  const shift = apiData?.shift || {};
   const financialSummary = apiData?.report?.financialSummary || {};
   const ordersSummary = apiData?.report?.ordersSummary || {};
   const expenses = apiData?.report?.expenses || { rows: [], total: 0 };
 
-  const financial_accounts = [
-    {
-      financial_id: "cash",
-      financial_name: t("Cash") || "Cash",
-      total_amount: financialSummary.cash?.amount || 0,
-      count: ordersSummary.totalOrders || 0,
-    },
-    {
-      financial_id: "vodafone",
-      financial_name: "Vodafone Cash",
-      total_amount: financialSummary.vodafoneCash?.amount || 0,
-      count: 0,
-    }
-  ].filter(acc => acc.total_amount > 0);
+  // استخراج الحسابات المالية من accounts array (ديناميكيًا)
+  const financial_accounts = (financialSummary.accounts || [])
+    .filter(acc => (acc.salesAmount || 0) > 0)
+    .map(acc => ({
+      financial_id: acc.account_id || acc.name,
+      financial_name: acc.name === "cash" ? t("Cash") : acc.name.charAt(0).toUpperCase() + acc.name.slice(1).replace("_", " "),
+      total_amount: acc.salesAmount || 0,
+    }));
 
-  const grand_total = shift?.total_sale_amount || financialSummary.netCashInDrawer || 0;
-  const netCashInDrawer = shift?.net_cash_in_drawer || financialSummary.netCashInDrawer || grand_total;
-  const expenses_total = expenses.total || 0;
+  const totalSales = financialSummary.totals?.totalSales || 0;
+  const totalExpenses = financialSummary.totals?.totalExpenses || expenses.total || 0;
+  const netCashInDrawer = financialSummary.totals?.netCashInDrawer || totalSales - totalExpenses;
   const expenses_list = expenses.rows || [];
   const total_orders = ordersSummary.totalOrders || 0;
+
+  // مدة الشيفت
+  const shiftStart = shift.start_time ? new Date(shift.start_time).toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' }) : "";
+  const shiftEnd = shift.end_time 
+    ? new Date(shift.end_time).toLocaleTimeString(isArabic ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' })
+    : t("Now") || "الآن";
 
   const formatAmount = (amount, currency = t("EGP")) => {
     return `${(amount || 0).toLocaleString(undefined, {
@@ -264,7 +268,7 @@ export default function EndShiftReportModal({ reportData, onClose, onConfirmClos
           {/* العنوان وزر الطباعة */}
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-gray-800">
-              {t("EndShiftReport")}
+              {t("EndShiftReport")} {message.includes("preview") ? `(${t("Preview")})` : ""}
             </h2>
             <button
               onClick={handlePrint}
@@ -276,9 +280,13 @@ export default function EndShiftReportModal({ reportData, onClose, onConfirmClos
           </div>
 
           {/* معلومات الشيفت */}
-          {shift && (
+          {shift.start_time && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
-              <CompactStatCard icon={FaClock} title={t("ShiftDuration")} value={`من ${new Date(shift.start_time).toLocaleTimeString()} إلى ${new Date(shift.end_time).toLocaleTimeString()}`} />
+              <CompactStatCard 
+                icon={FaClock} 
+                title={t("ShiftDuration")} 
+                value={`${t("From")} ${shiftStart} ${t("To")} ${shiftEnd}`} 
+              />
               <CompactStatCard icon={FaShoppingCart} title={t("TotalOrders")} value={total_orders} />
             </div>
           )}
@@ -287,38 +295,39 @@ export default function EndShiftReportModal({ reportData, onClose, onConfirmClos
           <div className="space-y-4 mb-6 pt-4 border-t border-gray-100">
             <SectionHeader icon={FaMoneyBillWave} title={t("FinancialSummary")} />
             <div className="space-y-4">
-              {financial_accounts.map((acc) => (
-                <div
-                  key={acc.financial_id}
-                  className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm"
-                >
-                  <div className="p-4 bg-gradient-to-r from-gray-50 to-gray-100 flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-white rounded-full shadow">
-                        <FaMoneyBillWave className="text-lg text-green-600" />
+              {financial_accounts.length > 0 ? (
+                financial_accounts.map((acc) => (
+                  <div
+                    key={acc.financial_id}
+                    className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm"
+                  >
+                    <div className="p-4 bg-gradient-to-r from-gray-50 to-gray-100 flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-white rounded-full shadow">
+                          <FaMoneyBillWave className="text-lg text-green-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-gray-800">{acc.financial_name}</h4>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="font-bold text-gray-800">{acc.financial_name}</h4>
-                        {acc.count > 0 && (
-                          <p className="text-xs text-gray-600">{acc.count} {t("Orders")}</p>
-                        )}
+                      <div className="text-right">
+                        <p className="text-xl font-bold text-gray-800">
+                          {formatAmount(acc.total_amount)}
+                        </p>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xl font-bold text-gray-800">
-                        {formatAmount(acc.total_amount)}
-                      </p>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-center text-gray-500 py-4">{t("NoSalesYet") || "لا توجد مبيعات بعد"}</p>
+              )}
             </div>
 
             {/* إجمالي المبيعات */}
             <div className="mt-6 pt-4 border-t-2 border-gray-300">
               <div className="flex justify-between items-center p-4 bg-gray-900 text-white rounded-lg text-lg font-bold">
                 <span>{t("TotalCashInShift")}</span>
-                <span className="text-2xl">{formatAmount(grand_total)}</span>
+                <span className="text-2xl">{formatAmount(totalSales)}</span>
               </div>
             </div>
           </div>
@@ -353,7 +362,7 @@ export default function EndShiftReportModal({ reportData, onClose, onConfirmClos
                         {t("TotalExpenses")}
                       </td>
                       <td className="px-4 py-3 text-center text-lg font-bold">
-                        -{formatAmount(expenses_total)}
+                        -{formatAmount(totalExpenses)}
                       </td>
                     </tr>
                   </tbody>

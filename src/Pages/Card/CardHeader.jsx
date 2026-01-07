@@ -27,14 +27,7 @@ export default function CardHeader({
           {t("ClearAllItems")} ({orderItems.length || 0})
         </Button>
 
-        {/* View Orders */}
-        <Button
-          onClick={handleViewOrders}
-          className="bg-gray-500 text-white hover:bg-gray-600 text-sm px-6 py-4 w-full md:h-12"
-          disabled={isLoading}
-        >
-          {t("ViewOrders")}
-        </Button>
+
 
         {/* Pending Orders */}
         <Button

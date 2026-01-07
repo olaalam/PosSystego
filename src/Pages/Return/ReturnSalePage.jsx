@@ -15,17 +15,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Trash2 } from "lucide-react";
 
 export default function ReturnSalePage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isArabic = i18n.language === "ar";
   const navigate = useNavigate();
   const { postData, loading } = usePost();
 
@@ -53,12 +47,29 @@ export default function ReturnSalePage() {
       if (response.success) {
         const { sale, items } = response.data;
 
-        // تهيئة الأصناف مع كمية الإرجاع = 0 وسبب فارغ
-        const initializedItems = items.map((item) => ({
-          ...item,
-          return_quantity: 0,
-          reason: "",
-        }));
+        // تهيئة الأصناف مع دعم كلا الحالتين (product_price أو product)
+        const initializedItems = items.map((item) => {
+          // اسم المنتج حسب اللغة (مع trim)
+          const productName = item.product?.name || "";
+          const productArName = (item.product?.ar_name || "").trim() || "";
+          const displayName = isArabic 
+            ? (productArName || productName || t("Unknown Product"))
+            : (productName || productArName || t("Unknown Product"));
+
+          // الكود
+          const code = item.product_price?.code || "-";
+
+          return {
+            ...item,
+            return_quantity: 0,
+            reason: "",
+            displayName,
+            code,
+            max_return: item.available_to_return || 0,
+            original_quantity: item.quantity || 0,
+            unit_price: item.price || 0,
+          };
+        });
 
         setSaleData(sale);
         setReturnItems(initializedItems);
@@ -74,7 +85,7 @@ export default function ReturnSalePage() {
 
   // تعديل كمية الإرجاع
   const updateQuantity = (index, qty) => {
-    const maxQty = returnItems[index].quantity || returnItems[index].original_quantity || 0;
+    const maxQty = returnItems[index].max_return || 0;
     const newQty = Math.max(0, Math.min(parseInt(qty) || 0, maxQty));
     const updated = [...returnItems];
     updated[index].return_quantity = newQty;
@@ -102,14 +113,14 @@ export default function ReturnSalePage() {
       const qty = item.return_quantity || 0;
       if (qty > 0) {
         totalQuantity += qty;
-        const price = item.net_unit_price || item.unit_price || item.price || 0;
+        const price = item.unit_price || 0;
         totalAmount += qty * price;
       }
     });
 
     return {
       totalQuantity,
-      totalAmount: totalAmount.toFixed(2),
+      totalAmount: parseFloat(totalAmount.toFixed(2)),
     };
   };
 
@@ -135,20 +146,16 @@ export default function ReturnSalePage() {
       return;
     }
 
-    if (!refundAccountId.trim()) {
-      toast.error(t("Please enter refund account ID"));
-      return;
-    }
+
 
     const payload = {
       sale_id: saleData._id,
       items: validItems.map((item) => ({
-        product_price_id: item.product_price_id || item._id,
+        product_price_id: item.product_price?._id || item._id,
         quantity: item.return_quantity,
         reason: item.reason.trim(),
       })),
-      refund_account_id: refundAccountId.trim(),
-      note: returnNote.trim() ,
+      note: returnNote.trim(),
     };
 
     let dataToSend = payload;
@@ -181,6 +188,16 @@ export default function ReturnSalePage() {
     }
   };
 
+  // استخراج أسماء الكاشير والكاشير مان حسب اللغة
+  const cashierName = (() => {
+    const cashier = saleData?.shift?.cashier;
+    if (!cashier) return "-";
+    const arName = (cashier.ar_name || "").trim();
+    return isArabic ? (arName || cashier.name || "-") : (cashier.name || arName || "-");
+  })();
+
+  const cashiermanName = saleData?.shift?.cashierman?.username || "-";
+
   // شاشة البحث الأولية
   if (!saleData) {
     return (
@@ -200,7 +217,7 @@ export default function ReturnSalePage() {
                   <Input
                     id="reference"
                     type="text"
-                    placeholder={t("e.g. 12162991")}
+                    placeholder={t("e.g. 01075713")}
                     value={reference}
                     onChange={(e) => setReference(e.target.value)}
                     disabled={loading}
@@ -234,32 +251,48 @@ export default function ReturnSalePage() {
           </CardHeader>
           <CardContent className="space-y-6">
 
-            {/* Header: Reference, Customer, Warehouse, Biller */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Header: Reference, Date, Customer, Warehouse, Cashier, Cashier Manager */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
               <div>
                 <Label>{t("Reference")}</Label>
                 <Input value={saleData?.reference || ""} readOnly className="bg-gray-100" />
               </div>
               <div>
-                <Label>{t("Customer")} *</Label>
+                <Label>{t("Date")}</Label>
                 <Input 
-                  value={saleData?.customer?.name || saleData?.customer_id?.name || t("Walk in Customer")} 
+                  value={saleData?.date ? new Date(saleData.date).toLocaleString() : "-"} 
                   readOnly 
                   className="bg-gray-100" 
                 />
               </div>
               <div>
-                <Label>{t("Warehouse")} *</Label>
+                <Label>{t("Customer")}</Label>
                 <Input 
-                  value={saleData?.warehouse?.name || saleData?.warehouse_id?.name || ""} 
+                  value={saleData?.customer?.name || t("Walk in Customer")} 
                   readOnly 
                   className="bg-gray-100" 
                 />
               </div>
               <div>
-                <Label>{t("Biller")} *</Label>
+                <Label>{t("Warehouse")}</Label>
                 <Input 
-                  value={saleData?.biller?.name || saleData?.cashier?.name || saleData?.cashier_id?.name || ""} 
+                  value={saleData?.warehouse?.name || "-"} 
+                  readOnly 
+                  className="bg-gray-100" 
+                />
+              </div>
+              <div>
+                <Label>{t("Cashier")}</Label>
+                <Input 
+                  value={cashierName} 
+                  readOnly 
+                  className="bg-gray-100" 
+                />
+              </div>
+              <div>
+                <Label>{t("Cashier Manager") || "Cashier Man"}</Label>
+                <Input 
+                  value={cashiermanName} 
                   readOnly 
                   className="bg-gray-100" 
                 />
@@ -273,46 +306,42 @@ export default function ReturnSalePage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>{t("Name")}</TableHead>
+                      <TableHead>{t("Product")}</TableHead>
                       <TableHead>{t("Code")}</TableHead>
-                      <TableHead>{t("Batch No")}</TableHead>
                       <TableHead>{t("Quantity")}</TableHead>
+                      <TableHead>{t("Available to Return")}</TableHead>
                       <TableHead>{t("Return Qty")}</TableHead>
                       <TableHead>{t("Reason")}</TableHead>
-                      <TableHead>{t("Net Unit Price")}</TableHead>
-                      <TableHead>{t("Discount")}</TableHead>
-                      <TableHead>{t("Tax")}</TableHead>
+                      <TableHead>{t("Unit Price")}</TableHead>
                       <TableHead>{t("SubTotal")}</TableHead>
-                      <TableHead></TableHead>
+                      <TableHead className="w-10"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {returnItems.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={11} className="text-center text-gray-500 py-8">
+                        <TableCell colSpan={9} className="text-center text-gray-500 py-8">
                           {t("No items available")}
                         </TableCell>
                       </TableRow>
                     ) : (
                       returnItems.map((item, index) => {
-                        const itemPrice = item.net_unit_price || item.unit_price || item.price || 0;
-                        const itemQty = item.quantity || item.original_quantity || 0;
                         const returnQty = item.return_quantity || 0;
-                        const subtotal = returnQty * itemPrice;
+                        const subtotal = (returnQty * item.unit_price).toFixed(2);
                         
                         return (
-                          <TableRow key={item._id || item.product_price_id || index}>
+                          <TableRow key={item._id || index}>
                             <TableCell className="font-medium">
-                              {item.product_name || item.name || t("Unknown Product")}
+                              {item.displayName}
                             </TableCell>
-                            <TableCell>{item.code || item.product_code || "-"}</TableCell>
-                            <TableCell>{item.batch_no || item.batch_number || "-"}</TableCell>
-                            <TableCell>{itemQty}</TableCell>
+                            <TableCell>{item.code}</TableCell>
+                            <TableCell>{item.original_quantity || 0}</TableCell>
+                            <TableCell>{item.max_return || 0}</TableCell>
                             <TableCell>
                               <Input
                                 type="number"
                                 min="0"
-                                max={itemQty}
+                                max={item.max_return || 0}
                                 value={returnQty}
                                 onChange={(e) => updateQuantity(index, e.target.value)}
                                 className="w-20"
@@ -327,10 +356,8 @@ export default function ReturnSalePage() {
                                 className="w-full min-w-[150px]"
                               />
                             </TableCell>
-                            <TableCell>{itemPrice.toFixed(2)}</TableCell>
-                            <TableCell>{item.discount || item.discount_amount || 0}</TableCell>
-                            <TableCell>{item.tax || item.tax_amount || 0}</TableCell>
-                            <TableCell>{subtotal.toFixed(2)}</TableCell>
+                            <TableCell>{item.unit_price.toFixed(2)}</TableCell>
+                            <TableCell>{subtotal}</TableCell>
                             <TableCell>
                               <Button variant="destructive" size="icon" onClick={() => removeItem(index)}>
                                 <Trash2 className="h-4 w-4" />
@@ -344,8 +371,8 @@ export default function ReturnSalePage() {
                       <TableRow className="font-bold bg-gray-100">
                         <TableCell colSpan={4}>{t("Total")}</TableCell>
                         <TableCell>{totalQuantity}</TableCell>
-                        <TableCell colSpan={4}></TableCell>
-                        <TableCell>{totalAmount}</TableCell>
+                        <TableCell colSpan={2}></TableCell>
+                        <TableCell>{totalAmount.toFixed(2)}</TableCell>
                         <TableCell></TableCell>
                       </TableRow>
                     )}
@@ -354,30 +381,27 @@ export default function ReturnSalePage() {
               </div>
             </div>
 
-            {/* Order Tax + Attach Document */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-              <div>
-                <Label>{t("Attach Document")} ({t("Optional")})</Label>
-                <div className="flex items-center gap-3">
-                  <Button variant="outline" asChild>
-                    <label htmlFor="file-upload" className="cursor-pointer">
-                      {t("Choose File")}
-                    </label>
-                  </Button>
-                  <input
-                    id="file-upload"
-                    type="file"
-                    className="hidden"
-                    onChange={handleFileChange}
-                  />
-                  <span className="text-sm text-gray-600">{fileName}</span>
-                </div>
+            {/* Attach Document */}
+            <div>
+              <Label>{t("Attach Document")} ({t("Optional")})</Label>
+              <div className="flex items-center gap-3 mt-2">
+                <Button variant="outline" asChild>
+                  <label htmlFor="file-upload" className="cursor-pointer">
+                    {t("Choose File")}
+                  </label>
+                </Button>
+                <input
+                  id="file-upload"
+                  type="file"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+                <span className="text-sm text-gray-600">{fileName}</span>
               </div>
             </div>
 
             {/* Refund Account */}
-            <div>
+            {/* <div>
               <Label>{t("Refund Account")} *</Label>
               <Input
                 placeholder={t("e.g. 693e887d5d2abb8f0937d1f5")}
@@ -385,23 +409,21 @@ export default function ReturnSalePage() {
                 onChange={(e) => setRefundAccountId(e.target.value)}
                 required
               />
-            </div>
+            </div> */}
 
             {/* Notes */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <Label>{t("Return Note")}</Label>
-                <textarea
-                  className="w-full p-3 border rounded-md"
-                  rows="4"
-                  value={returnNote}
-                  onChange={(e) => setReturnNote(e.target.value)}
-                  placeholder={t("e.g. Customer returned because...")}
-                />
-              </div>
+            <div>
+              <Label>{t("Return Note")}</Label>
+              <textarea
+                className="w-full p-3 border rounded-md mt-2"
+                rows="4"
+                value={returnNote}
+                onChange={(e) => setReturnNote(e.target.value)}
+                placeholder={t("e.g. Customer returned because...")}
+              />
             </div>
 
-            {/* Submit Button */}
+            {/* Submit Buttons */}
             <div className="flex justify-end gap-3">
               <Button
                 variant="outline"
@@ -410,7 +432,6 @@ export default function ReturnSalePage() {
                   setReturnItems([]);
                   setReference("");
                   setReturnNote("");
-                  setRefundAccountId("");
                   setAttachedFile(null);
                   setFileName("No file chosen");
                 }}
