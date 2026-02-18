@@ -8,16 +8,49 @@ export function useOrderCalculations(
   serviceFeeData // ممكن يكون undefined أو { type: "precentage" | "fixed", amount: number }
 ) {
   return useMemo(() => {
+    // دالة مساعدة لحساب سعر الوحدة مع الجملة والإضافات
+    const getFinalUnitPrice = (item) => {
+      const orderedQty = item.weight_status === 1
+        ? Number(item.quantity || item.count || 1)
+        : Number(item.count || 1);
+
+      const startQty = Number(item.start_quantaty || 0);
+      const wholePrice = Number(item.whole_price || 0);
+
+      let basePrice = (startQty > 0 && orderedQty >= startQty && wholePrice > 0)
+        ? wholePrice
+        : Number(item.price_after_discount || item.originalPrice || item.price || 0);
+
+      let addonsTotal = 0;
+      if (item.addons && Array.isArray(item.addons)) {
+        item.addons.forEach((addonGroup) => {
+          if (addonGroup.options && Array.isArray(addonGroup.options)) {
+            addonGroup.options.forEach((option) => {
+              if (option.selected || option.quantity > 0) {
+                const qty = option.quantity || 1;
+                addonsTotal += Number(option.price || 0) * qty;
+              }
+            });
+          }
+        });
+      }
+      if (item.extras && Array.isArray(item.extras)) {
+        item.extras.forEach((extra) => {
+          addonsTotal += Number(extra.price || 0) * (extra.quantity || 1);
+        });
+      }
+      return basePrice + addonsTotal;
+    };
+
     // 1. حساب SubTotal
     const subTotal = Array.isArray(orderItems)
       ? orderItems.reduce((acc, item) => {
-          const price = Number(item.price ?? 0);
-          const qty =
-            item.weight_status === 1
-              ? Number(item.quantity ?? 1)
-              : Number(item.count ?? 1);
-          return acc + price * qty;
-        }, 0)
+        const price = getFinalUnitPrice(item);
+        const qty = item.weight_status === 1
+          ? Number(item.quantity || item.count || 1)
+          : Number(item.count || 1);
+        return acc + price * qty;
+      }, 0)
       : 0;
 
     // 2. حساب الضرائب + تجميع تفاصيلها
@@ -26,10 +59,9 @@ export function useOrderCalculations(
 
     orderItems?.forEach((item) => {
       const taxPerUnit = Number(item.tax_val ?? 0);
-      const qty =
-        item.weight_status === 1
-          ? Number(item.quantity ?? 1)
-          : Number(item.count ?? 1);
+      const qty = item.weight_status === 1
+        ? Number(item.quantity || item.count || 1)
+        : Number(item.count || 1);
 
       if (taxPerUnit > 0) {
         order_tax += taxPerUnit * qty;
@@ -80,26 +112,18 @@ export function useOrderCalculations(
       );
 
       const selectedSubTotal = selectedItems.reduce((acc, item) => {
-        const price = Number(
-          item.itemPrice ??
-            item.itemTotal ??
-            item.price_after_discount ??
-            item.price ??
-            0
-        );
-        const qty =
-          item.weight_status === 1
-            ? Number(item.quantity ?? 1)
-            : Number(item.count ?? 1);
+        const price = getFinalUnitPrice(item);
+        const qty = item.weight_status === 1
+          ? Number(item.quantity || item.count || 1)
+          : Number(item.count || 1);
         return acc + price * qty;
       }, 0);
 
       const selectedTax = selectedItems.reduce((acc, item) => {
         const taxPerUnit = Number(item.tax_val ?? 0);
-        const qty =
-          item.weight_status === 1
-            ? Number(item.quantity ?? 1)
-            : Number(item.count ?? 1);
+        const qty = item.weight_status === 1
+          ? Number(item.quantity || item.count || 1)
+          : Number(item.count || 1);
         return acc + taxPerUnit * qty;
       }, 0);
 
@@ -127,10 +151,10 @@ export function useOrderCalculations(
     const checkoutItems =
       orderType === "dine_in" && selectedPaymentItems.length > 0
         ? orderItems.filter(
-            (item) =>
-              selectedPaymentItems.includes(item.temp_id) &&
-              item.preparation_status === "done"
-          )
+          (item) =>
+            selectedPaymentItems.includes(item.temp_id) &&
+            item.preparation_status === "done"
+        )
         : orderItems;
 
     return {

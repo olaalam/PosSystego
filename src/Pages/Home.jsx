@@ -4,7 +4,7 @@ import OrderPage from "./OrderPage";
 import { usePost } from "@/Hooks/usePost";
 import { useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
-import { useTranslation } from "react-i18next"; 
+import { useTranslation } from "react-i18next";
 
 const getInitialState = () => {
   const storedOrderType = sessionStorage.getItem("order_type") || "take_away";
@@ -33,7 +33,7 @@ export default function Home() {
   const [state, setState] = useState(getInitialState);
 
   const initialState = useMemo(() => getInitialState(), [location.key]);
-  
+
   useEffect(() => {
     setState((prevState) => {
       const newState = { ...prevState, ...initialState };
@@ -43,13 +43,13 @@ export default function Home() {
 
   useEffect(() => {
     const { state: locationState } = location;
-    
+
     if (locationState?.repeatedOrder && locationState?.tabValue === "take_away") {
       const storedCart = sessionStorage.getItem("cart");
       if (storedCart) {
         console.log("🔄 Loading repeated order cart:", JSON.parse(storedCart));
       }
-      
+
       setState((prevState) => ({
         ...prevState,
         orderType: "take_away",
@@ -57,37 +57,37 @@ export default function Home() {
       }));
       return;
     }
-    
+
 
   }, [location]);
 
   const { postData, loading: transferLoading } = usePost();
 
-  const fetchDiscount = useCallback(async () => {
-    const cachedDiscount = sessionStorage.getItem("discount_data");
-    if (cachedDiscount) return;
+  //   const fetchDiscount = useCallback(async () => {
+  //     const cachedDiscount = sessionStorage.getItem("discount_data");
+  //     if (cachedDiscount) return;
 
-    try {
-      const branch_id = sessionStorage.getItem("branch_id") || "4";
-const response = await postData("cashier/discount_module", {
-      branch_id: branch_id,
-      type: "web", // هنا بنبعت type: web زي ما عاوزة
-    });      console.log("Discount API Response:", response);
-      const discountData = {
-        discount: response?.discount || 0,
-        module: response?.module || [],
-      };
-      sessionStorage.setItem("discount_data", JSON.stringify(discountData));
-    } catch (error) {
-      console.error("Error fetching discount:", error);
-      toast.error(t("Failedtofetchdiscountdata"));
-      sessionStorage.setItem("discount_data", JSON.stringify({ discount: 0, module: [] }));
-    }
-  }, [postData, t]);
+  //     try {
+  //       const branch_id = sessionStorage.getItem("branch_id") || "4";
+  // const response = await postData("cashier/discount_module", {
+  //       branch_id: branch_id,
+  //       type: "web", // هنا بنبعت type: web زي ما عاوزة
+  //     });      console.log("Discount API Response:", response);
+  //       const discountData = {
+  //         discount: response?.discount || 0,
+  //         module: response?.module || [],
+  //       };
+  //       sessionStorage.setItem("discount_data", JSON.stringify(discountData));
+  //     } catch (error) {
+  //       console.error("Error fetching discount:", error);
+  //       toast.error(t("Failedtofetchdiscountdata"));
+  //       sessionStorage.setItem("discount_data", JSON.stringify({ discount: 0, module: [] }));
+  //     }
+  //   }, [postData, t]);
 
-  useEffect(() => {
-    fetchDiscount();
-  }, [fetchDiscount]);
+  //   useEffect(() => {
+  //     fetchDiscount();
+  //   }, [fetchDiscount]);
 
 
 

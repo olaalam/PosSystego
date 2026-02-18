@@ -7,7 +7,7 @@ import { Phone } from "lucide-react";
 // مكون الطباعة بنفس ديزاين الكاشير ريسيبت
 const PrintableOrder = React.forwardRef(({ orderItems, calculations, orderType, tableId, t, restaurantInfo }, ref) => {
   const isArabic = localStorage.getItem('language') === 'ar';
-  
+
   const calculatePriceWithAddons = (item) => {
     let basePrice = Number(item.originalPrice || item.price || 0);
     let addonsTotal = 0;
@@ -81,7 +81,7 @@ const PrintableOrder = React.forwardRef(({ orderItems, calculations, orderType, 
             </span>
           </div>
         )}
-                {orderType === 'dine_in' && tableId && (
+        {orderType === 'dine_in' && tableId && (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
             <span style={{ fontSize: '12px', fontWeight: 'bold' }}>
               {isArabic ? 'رقم التحضير' : 'preparation No.'}
@@ -137,17 +137,17 @@ const PrintableOrder = React.forwardRef(({ orderItems, calculations, orderType, 
               ? calculatePriceWithAddons(item)
               : Number(item.price) || 0;
 
-            const quantityForCalc = item.weight_status === 1 
+            const quantityForCalc = item.weight_status === 1
               ? Number(item.quantity || item.count || 1)
               : Number(item.count || 1);
 
             const totalPrice = (finalUnitPrice * quantityForCalc).toFixed(2);
-            const productName = isArabic 
-              ? (item.name_ar || item.nameAr || item.name) 
+            const productName = isArabic
+              ? (item.name_ar || item.nameAr || item.name)
               : (item.name_en || item.nameEn || item.name);
 
-            const displayQty = item.weight_status === 1 
-              ? `${item.quantity} kg` 
+            const displayQty = item.weight_status === 1
+              ? `${item.quantity} kg`
               : item.count;
 
             return (
@@ -159,7 +159,7 @@ const PrintableOrder = React.forwardRef(({ orderItems, calculations, orderType, 
                   <td style={{ border: '1px solid #000', padding: '3px 4px', textAlign: isArabic ? 'right' : 'left', verticalAlign: 'middle' }}>
                     <div>
                       <strong>{productName}</strong>
-                      
+
                       {/* Variations */}
                       {item.variations?.map((group, i) => {
                         const selected = Array.isArray(group.selected_option_id)
@@ -208,7 +208,7 @@ const PrintableOrder = React.forwardRef(({ orderItems, calculations, orderType, 
           <span>{isArabic ? 'المبلغ قبل الضريبة' : 'Subtotal'}</span>
           <span style={{ fontWeight: 'bold' }}>{calculations.subTotal.toFixed(2)}</span>
         </div>
-            
+
         {calculations.taxDetails && calculations.taxDetails.length > 0 ? (
           calculations.taxDetails.map((tax, index) => (
             <div key={index} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px', fontSize: '12px' }}>
@@ -232,14 +232,14 @@ const PrintableOrder = React.forwardRef(({ orderItems, calculations, orderType, 
           </div>
         )}
 
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          fontSize: '16px', 
-          fontWeight: 'bold', 
-          marginTop: '8px', 
-          borderTop: '1px dashed #000', 
-          paddingTop: '5px' 
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          fontSize: '16px',
+          fontWeight: 'bold',
+          marginTop: '8px',
+          borderTop: '1px dashed #000',
+          paddingTop: '5px'
         }}>
           <span>{isArabic ? 'الإجمالي الكلي' : 'Grand Total'}</span>
           <span>{calculations.amountToPay.toFixed(2)}</span>
@@ -254,10 +254,10 @@ const PrintableOrder = React.forwardRef(({ orderItems, calculations, orderType, 
         </p>
         {restaurantInfo?.Phone && (
           <p style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
-            <Phone size={12} /> 
+            <Phone size={12} />
             {restaurantInfo.Phone}
           </p>
-        )}  
+        )}
       </div>
     </div>
   );
@@ -317,10 +317,10 @@ export default function OrderSummary({
         <body>${printContents}</body>
       </html>
     `);
-    
+
     printWindow.document.close();
     printWindow.focus();
-    
+
     setTimeout(() => {
       printWindow.print();
       printWindow.close();
@@ -338,7 +338,7 @@ export default function OrderSummary({
   const restaurantInfo = {
     name: sessionStorage.getItem('resturant_name') || 'Restaurant Name',
     address: sessionStorage.getItem('restaurant_address') || 'Restaurant Address',
-    prep:sessionStorage.getItem("preparation_number"),
+    prep: sessionStorage.getItem("preparation_number"),
     Phone: sessionStorage.getItem('restaurant_phone') || '',
   };
 
@@ -360,21 +360,20 @@ export default function OrderSummary({
       {/* Summary Display */}
       <div className="bg-gray-50 p-6 rounded-lg shadow-inner mb-6">
         <SummaryRow label={t("SubTotal")} value={subTotal} />
-        
+
         {taxDetails && taxDetails.length > 0 ? (
           taxDetails.map((tax, index) => (
             <SummaryRow
               key={index}
-              label={`${tax.name} (${tax.amount}${
-                tax.type === "precentage" ? "%" : " EGP"
-              })`}
+              label={`${tax.name} (${tax.amount}${tax.type === "precentage" ? "%" : " EGP"
+                })`}
               value={tax.total}
             />
           ))
         ) : (
           <SummaryRow label={t("Tax")} value={order_tax} />
         )}
-        
+
         {["dine_in", "take_away"].includes(orderType) && totalOtherCharge > 0 && (
           <SummaryRow
             label={`${t("Service Fee")} (${serviceFeeData?.amount || 0}%)`}
@@ -411,74 +410,67 @@ export default function OrderSummary({
       </div>
 
       {/* ✅ الجزء المعدّل: نشيل الـ Checkout ونظهر Apply Offer */}
-<div className="flex  items-center gap-4 w-full">
-  {/* إذا كان في عرض معتمد → زر Apply Offer فقط */}
-  {offerManagement.approvedOfferData ? (
-    <div className="w-full">
-      <div className="bg-teal-50 border border-teal-300 rounded-lg p-4 mb-4 text-center">
-        <p className="font-bold text-teal-800">
-          {t("RewardItem")}: {offerManagement.approvedOfferData.product}
-        </p>
+      <div className="flex  items-center gap-4 w-full">
+        {/* إذا كان في عرض معتمد → زر Apply Offer فقط */}
+        {offerManagement.approvedOfferData ? (
+          <div className="w-full">
+            <div className="bg-teal-50 border border-teal-300 rounded-lg p-4 mb-4 text-center">
+              <p className="font-bold text-teal-800">
+                {t("RewardItem")}: {offerManagement.approvedOfferData.product}
+              </p>
+            </div>
+
+            <div className="flex gap-3 justify-center">
+              <Button
+                onClick={async () => {
+                  const success = await offerManagement.applyApprovedOffer();
+                  if (success && onCheckout) onCheckout(); // نروح للدفع فورًا
+                }}
+                className="bg-bg-secondary hover:bg-teal-700 text-white text-lg px-10 py-6 font-bold flex-1"
+                disabled={isLoading}
+              >
+                {isLoading ? <Loading /> : <>Apply Offer & Checkout</>}
+              </Button>
+
+              <Button
+                onClick={offerManagement.cancelApprovedOffer}
+                variant="outline"
+                className="border-purple-500 text-purple-600 hover:bg-purple-50"
+                disabled={isLoading}
+              >
+                {t("Cancel")}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          /* الحالة العادية: Checkout */
+          <div className="grid grid-cols-3 gap-4 w-full">
+            {/* زر Checkout & Print (يطبع) */}
+            <Button
+              onClick={() => onCheckout(true)} // true = print
+              className="bg-bg-primary text-white hover:bg-purple-700 text-lg px-8 py-6 font-bold flex-1"
+              disabled={isLoading || orderItemsLength === 0 || (orderType === "dine_in" && selectedPaymentCount === 0)}
+            >
+              {isLoading ? <Loading /> : t("Checkout&Print")}
+            </Button>
+
+            {/* زر Checkout Only (بدون طباعة) */}
+            <Button
+              onClick={() => onCheckout(false)} // false = no print
+              className="bg-gray-600 text-white hover:bg-gray-700 text-lg px-8 py-6 font-bold flex-1"
+              disabled={isLoading || orderItemsLength === 0 || (orderType === "dine_in" && selectedPaymentCount === 0)}
+            >
+              {isLoading ? <Loading /> : t("CheckoutOnly")}
+            </Button>
+
+            {(orderType === "take_away") && (
+              <Button onClick={onSaveAsPending} className="bg-teal-600 text-white hover:bg-teal-700 text-lg px-8 py-6 flex-1">
+                {t("SaveasPending")}
+              </Button>
+            )}
+          </div>
+        )}
       </div>
-
-      <div className="flex gap-3 justify-center">
-        <Button
-          onClick={async () => {
-            const success = await offerManagement.applyApprovedOffer();
-            if (success && onCheckout) onCheckout(); // نروح للدفع فورًا
-          }}
-          className="bg-bg-secondary hover:bg-teal-700 text-white text-lg px-10 py-6 font-bold flex-1"
-          disabled={isLoading}
-        >
-          {isLoading ? <Loading /> : <>Apply Offer & Checkout</>}
-        </Button>
-
-        <Button
-          onClick={offerManagement.cancelApprovedOffer}
-          variant="outline"
-          className="border-purple-500 text-purple-600 hover:bg-purple-50"
-          disabled={isLoading}
-        >
-          {t("Cancel")}
-        </Button>
-      </div>
-    </div>
-  ) : (
-    /* الحالة العادية: Checkout */
-    <div className="flex gap-4 w-full">
-  {/* زر Checkout & Print (يطبع) */}
-  <Button
-    onClick={() => onCheckout(true)} // true = print
-    className="bg-bg-primary text-white hover:bg-purple-700 text-lg px-8 py-6 font-bold flex-1"
-    disabled={isLoading || orderItemsLength === 0 || (orderType === "dine_in" && selectedPaymentCount === 0)}
-  >
-    {isLoading ? <Loading /> : t("Checkout&Print")}
-  </Button>
-
-  {/* زر Checkout Only (بدون طباعة) */}
-  <Button
-    onClick={() => onCheckout(false)} // false = no print
-    className="bg-gray-600 text-white hover:bg-gray-700 text-lg px-8 py-6 font-bold flex-1"
-    disabled={isLoading || orderItemsLength === 0 || (orderType === "dine_in" && selectedPaymentCount === 0)}
-  >
-    {isLoading ? <Loading /> : t("CheckoutOnly")}
-  </Button>
-
-      {/* باقي الأزرار */}
-      {orderType === "dine_in" && allItemsDone && (
-        <Button onClick={handlePrint} className="bg-blue-600 text-white hover:bg-blue-700 text-lg px-8 py-3">
-          Print
-        </Button>
-      )}
-
-      {(orderType === "take_away" || orderType === "delivery") && (
-        <Button onClick={onSaveAsPending} className="bg-teal-600 text-white hover:bg-teal-700 text-lg px-8 py-6 flex-1">
-          {t("SaveasPending")}
-        </Button>
-      )}
-    </div>
-  )}
-</div>
     </div>
   );
 }

@@ -15,8 +15,8 @@ export default function OrderPage({
   propUserId,
   discountData = { discount: 0, module: [] },
 }) {
-   const { i18n } = useTranslation()
-      const isArabic = i18n.language === "ar";
+  const { i18n } = useTranslation()
+  const isArabic = i18n.language === "ar";
   const [ordersByTable, setOrdersByTable] = useState({});
   const [ordersByUser, setOrdersByUser] = useState({});
   const [takeAwayItems, setTakeAwayItems] = useState(initialCart);
@@ -93,13 +93,13 @@ export default function OrderPage({
     if (isDineIn && currentTableId && dineInData?.success) {
       const mappedItems = Array.isArray(dineInData.success)
         ? dineInData.success.map((item) => ({
-            ...item,
-            originalPrice: item.originalPrice ?? item.price ?? 0,
-            temp_id: item.temp_id || `dinein_${item.id}_${Date.now()}`,
-            count: parseInt(item.count || 1),
-            price: parseFloat(item.price || 0),
-            preparation_status: item.prepration || item.preparation_status || "pending",
-          }))
+          ...item,
+          originalPrice: item.originalPrice ?? item.price ?? 0,
+          temp_id: item.temp_id || `dinein_${item.id}_${Date.now()}`,
+          count: parseInt(item.count || 1),
+          price: parseFloat(item.price || 0),
+          preparation_status: item.prepration || item.preparation_status || "pending",
+        }))
         : [];
 
       setOrdersByTable((prev) => ({
@@ -114,13 +114,13 @@ export default function OrderPage({
     if (isDelivery && currentUserId && dineInData?.success) {
       const mappedItems = Array.isArray(dineInData.success)
         ? dineInData.success.map((item) => ({
-            ...item,
-            originalPrice: item.originalPrice ?? item.price ?? 0,
-            temp_id: item.temp_id || `delivery_${item.id}_${Date.now()}`,
-            count: parseInt(item.count || 1),
-            price: parseFloat(item.price || 0),
-            preparation_status: item.prepration || item.preparation_status || "pending",
-          }))
+          ...item,
+          originalPrice: item.originalPrice ?? item.price ?? 0,
+          temp_id: item.temp_id || `delivery_${item.id}_${Date.now()}`,
+          count: parseInt(item.count || 1),
+          price: parseFloat(item.price || 0),
+          preparation_status: item.prepration || item.preparation_status || "pending",
+        }))
         : [];
 
       setOrdersByUser((prev) => ({
@@ -173,8 +173,8 @@ export default function OrderPage({
   const currentOrderItems = isDineIn
     ? ordersByTable[currentTableId] || []
     : isDelivery
-    ? ordersByUser[currentUserId] || []
-    : takeAwayItems;
+      ? ordersByUser[currentUserId] || []
+      : takeAwayItems;
 
   const updateOrderItems = (newItems) => {
     const safeNewItems = Array.isArray(newItems) ? newItems : [];
@@ -199,7 +199,7 @@ export default function OrderPage({
       return;
     }
 
-const existingItemIndex = safeCurrentItems.findIndex((item) => areProductsEqual(item, product));    let updatedItems = [...safeCurrentItems];
+    const existingItemIndex = safeCurrentItems.findIndex((item) => areProductsEqual(item, product)); let updatedItems = [...safeCurrentItems];
 
     if (existingItemIndex !== -1) {
       const existingItem = updatedItems[existingItemIndex];
@@ -236,8 +236,17 @@ const existingItemIndex = safeCurrentItems.findIndex((item) => areProductsEqual(
   console.log("🎯 OrderPage Order Type:", currentOrderType);
 
   return (
-    <div className="flex flex-col-reverse lg:flex-row gap-4 p-4 h-full  w-full" dir={isArabic ? "rtl" : "ltr"}>
-      <div className="w-full lg:w-1/2 sm:overflow-auto">
+    <div className="flex flex-col lg:flex-row gap-4 p-4 w-full h-screen " dir={isArabic ? "rtl" : "ltr"}>
+      <div className="w-full lg:w-[70%] h-full overflow-hidden">
+        <Item
+          onAddToOrder={handleAddItem}
+          fetchEndpoint={fetchEndpoint}
+          onClose={handleClose}
+          refreshCartData={refreshCartData}
+          orderItems={currentOrderItems}
+        />
+      </div>
+      <div className="w-full lg:w-[30%] h-full overflow-y-auto">
         <Card
           key={refreshTrigger}
           orderItems={currentOrderItems}
@@ -251,15 +260,7 @@ const existingItemIndex = safeCurrentItems.findIndex((item) => areProductsEqual(
           discountData={discountData}
         />
       </div>
-      <div className="w-full lg:w-1/2 mt-4 lg:mt-0">
-        <Item
-          onAddToOrder={handleAddItem}
-          fetchEndpoint={fetchEndpoint}
-          onClose={handleClose}
-          refreshCartData={refreshCartData}
-          orderItems={currentOrderItems}
-        />
-      </div>
+
     </div>
   );
 }

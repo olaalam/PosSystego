@@ -1,4 +1,4 @@
-{/* ProductModal.jsx - Full Updated Version with different_price + variations + notes + weight + duplicate check */}
+{/* ProductModal.jsx - Full Updated Version with different_price + variations + notes + weight + duplicate check */ }
 
 import React, { useState } from "react";
 import {
@@ -51,7 +51,14 @@ const calculateProductTotalPrice = (
   }
 
   // الحالة العادية: سعر المنتج الأساسي + variations + extras
-  let totalPrice = parseFloat(baseProduct.price_after_discount || baseProduct.price || 0);
+  const startQty = Number(baseProduct.start_quantaty || 0);
+  const wholePrice = Number(baseProduct.whole_price || 0);
+  // الشرط: إذا كانت الكمية المطلوبة أكبر من أو تساوي بداية الجملة
+  const isWholesale = startQty > 0 && quantity >= startQty && wholePrice > 0;
+
+  let totalPrice = isWholesale
+    ? wholePrice
+    : parseFloat(baseProduct.price_after_discount || baseProduct.price || 0);
 
   // إضافة أسعار الـ variations العادية
   if (baseProduct.variations && Object.keys(selectedVariation).length > 0) {
@@ -100,9 +107,9 @@ const calculateProductTotalPrice = (
       if (extraItem) {
         const extraPrice = parseFloat(
           extraItem.price_after_discount ||
-            extraItem.price_after_tax ||
-            extraItem.price ||
-            0
+          extraItem.price_after_tax ||
+          extraItem.price ||
+          0
         );
         totalPrice += extraPrice * count;
       }
@@ -286,14 +293,39 @@ const ProductModal = ({
                   </p>
                 )}
               </div>
-              <span className="text-xl font-semibold text-purple-600">
-                {totalPrice.toFixed(2)} {t("EGP")}
-              </span>
+              <div className="text-right">
+                {(() => {
+                  const startQty = Number(selectedProduct.start_quantaty || 0);
+                  const wholePrice = Number(selectedProduct.whole_price || 0);
+                  // هنا نستخدم quantity (الكمية المختارة في المودال) بدلاً من الكمية في الداتا
+                  const isWholesale = startQty > 0 && quantity >= startQty && wholePrice > 0;
+
+                  if (isWholesale && !selectedProduct.different_price) {
+                    const originalTotal = (parseFloat(selectedProduct.price_after_discount || selectedProduct.price || 0)) * quantity;
+                    return (
+                      <div className="flex flex-col items-end">
+                        <span className="text-sm text-gray-500 line-through">
+                          {(originalTotal).toFixed(2)} {t("EGP")}
+                        </span>
+                        <span className="text-xl font-semibold text-purple-600">
+                          {totalPrice.toFixed(2)} {t("EGP")}
+                        </span>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <span className="text-xl font-semibold text-purple-600">
+                      {totalPrice.toFixed(2)} {t("EGP")}
+                    </span>
+                  );
+                })()}
+              </div>
             </div>
 
             <DialogDescription className="text-gray-500 text-sm mb-4">
               {selectedProduct.description &&
-              selectedProduct.description !== "null"
+                selectedProduct.description !== "null"
                 ? selectedProduct.description
                 : t("Nodescriptionavailable")}
             </DialogDescription>
@@ -329,11 +361,10 @@ const ProductModal = ({
                               onClick={() =>
                                 onVariationChange(variation.id, option.id)
                               }
-                              className={`relative overflow-hidden rounded-xl border-2 px-4 py-3 text-sm font-medium transition-all duration-200 ${
-                                isSelected
-                                  ? "bg-purple-600 text-white border-purple-600 shadow-lg scale-105"
-                                  : "bg-white text-gray-700 border-gray-300 hover:border-purple-400"
-                              }`}
+                              className={`relative overflow-hidden rounded-xl border-2 px-4 py-3 text-sm font-medium transition-all duration-200 ${isSelected
+                                ? "bg-purple-600 text-white border-purple-600 shadow-lg scale-105"
+                                : "bg-white text-gray-700 border-gray-300 hover:border-purple-400"
+                                }`}
                             >
                               {option.image && variation.id === "price_variation" && (
                                 <img
@@ -506,11 +537,10 @@ const ProductModal = ({
                     <button
                       key={item.id}
                       onClick={() => onExclusionChange(item.id)}
-                      className={`px-4 py-2 rounded-lg border-2 text-sm font-medium transition-all ${
-                        selectedExcludes.includes(item.id)
-                          ? "bg-purple-600 text-white border-purple-600"
-                          : "bg-gray-100 text-gray-700 border-gray-300 hover:border-purple-400"
-                      }`}
+                      className={`px-4 py-2 rounded-lg border-2 text-sm font-medium transition-all ${selectedExcludes.includes(item.id)
+                        ? "bg-purple-600 text-white border-purple-600"
+                        : "bg-gray-100 text-gray-700 border-gray-300 hover:border-purple-400"
+                        }`}
                     >
                       <span className="line-through capitalize">{item.name}</span>
                     </button>
@@ -604,11 +634,11 @@ const ProductModal = ({
                     quantity: 1,
                     price: src
                       ? parseFloat(
-                          src.price_after_discount ||
-                            src.price_after_tax ||
-                            src.price ||
-                            0
-                        )
+                        src.price_after_discount ||
+                        src.price_after_tax ||
+                        src.price ||
+                        0
+                      )
                       : 0,
                   };
                 });

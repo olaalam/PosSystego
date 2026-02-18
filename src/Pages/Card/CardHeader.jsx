@@ -12,9 +12,7 @@ export default function CardHeader({
   return (
     <div className="flex-shrink-0">
       {/* Title */}
-      <h2 className="text-bg-primary text-3xl font-bold mb-6">
-        {t("OrderDetails")}
-      </h2>
+
 
       {/* Buttons Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">

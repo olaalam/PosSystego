@@ -13,7 +13,7 @@ import { useTranslation } from "react-i18next";
 const ProductCard = ({ product, onAddToOrder, onOpenModal }) => {
   // إضافة state منفصل لكل كارت
   const [isCurrentItemLoading, setIsCurrentItemLoading] = useState(false);
-  const { t,i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const isArabic = i18n.language === "ar";
 
   // دالة للتعامل مع إضافة المنتج مع loading منفصل
@@ -70,7 +70,7 @@ const ProductCard = ({ product, onAddToOrder, onOpenModal }) => {
       <div className="px-3">
         <div className="mt-1 text-sm font-bold text-bg-primary">
           {product.price_after_discount !== null &&
-          product.price_after_discount < product.price ? (
+            product.price_after_discount < product.price ? (
             <>
               <span className="text-purple-600 line-through mr-1">
                 {product.price} {t("EGP")}
@@ -88,13 +88,12 @@ const ProductCard = ({ product, onAddToOrder, onOpenModal }) => {
         <button
           onClick={() => handleAddToOrder(product)}
           disabled={isCurrentItemLoading}
-          className={`w-full py-1 px-2 text-sm rounded transition-colors ${
-            isCurrentItemLoading
-              ? "bg-gray-400 text-gray-200 cursor-not-allowed"
-              : "bg-bg-primary text-white hover:bg-purple-700"
-          }`}
+          className={`w-full py-1 px-2 text-sm rounded transition-colors ${isCurrentItemLoading
+            ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+            : "bg-bg-primary text-white hover:bg-purple-700"
+            }`}
         >
-{isCurrentItemLoading ? t("Adding") : t("AddToOrder")}
+          {isCurrentItemLoading ? t("Adding") : t("AddToOrder")}
         </button>
       </div>
     </div>

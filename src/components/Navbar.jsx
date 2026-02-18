@@ -5,11 +5,24 @@ import { usePut } from "@/Hooks/usePut";
 import { useShift } from "@/context/ShiftContext";
 import { toast } from "react-toastify";
 import {
-  FaUserCircle,
-  FaUsers,
-  FaListAlt,
-  FaDollarSign,
-} from "react-icons/fa";
+  User,
+  Settings,
+  ListOrdered,
+  Users,
+  DollarSign,
+  LogOut,
+  XCircle,
+  Languages,
+
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useTranslation } from "react-i18next";
 // Shadcn UI components for Tabs
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -41,6 +54,7 @@ import Notifications from "@/components/Notifications";
 import { useGet } from "@/Hooks/useGet";
 import AddCustomer from "@/Pages/Customer/AddCustomer";
 import logo from "@/assets/logo.png";
+import { FaListAlt, FaUsers } from "react-icons/fa";
 
 // ===============================================
 // 🚀 المكون الجديد: Combobox للبحث في العملاء (مُخصص)
@@ -62,11 +76,10 @@ function CustomerSearchCombobox({ customers, selectedCustomer, onSelect, t }) {
           className="w-[220px] justify-between h-auto py-1 px-3 text-sm"
         >
           {selectedCustomerObj
-            ? `${selectedCustomerObj.name}${
-                selectedCustomerObj.phone_number
-                  ? ` (${selectedCustomerObj.phone_number})`
-                  : ""
-              }`
+            ? `${selectedCustomerObj.name}${selectedCustomerObj.phone_number
+              ? ` (${selectedCustomerObj.phone_number})`
+              : ""
+            }`
             : t("Select Customer")}
           <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
         </Button>
@@ -146,10 +159,10 @@ export default function Navbar() {
   const { putData } = usePut();
   const currentTab = sessionStorage.getItem("tab") || "take_away";
   const isArabic = i18n.language === "ar";
-  
+
   // ✅ تصحيح مسار استخراج العملاء
   const { data: selections } = useGet("api/admin/pos-home/selections");
-  const customers = selections?.data?.customers || []; 
+  const customers = selections?.data?.customers || [];
 
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(
@@ -199,9 +212,9 @@ export default function Navbar() {
       navigate("/", { replace: true });
     } else if (value === "online-order") {
       navigate("/online-orders", { replace: true });
-    }else if (value === "return") {
-    navigate("/return-sale", { replace: true }); // الصفحة الجديدة
-  }
+    } else if (value === "return") {
+      navigate("/return-sale", { replace: true }); // الصفحة الجديدة
+    }
   };
 
   const handleDueUsers = () => navigate("/due");
@@ -248,224 +261,207 @@ export default function Navbar() {
 
   const handleClose = async () => {
     // ⚠️ ملاحظة: تم إزالة setLoading(true) / setLoading(false) لأن usePut يديرها داخلياً.
-    
+
     try {
-        const endpoint = `api/admin/cashier-shift/end`;
+      const endpoint = `api/admin/cashier-shift/end`;
 
-        // ✅ استدعاء API لقفل الـ shift باستخدام putData
-        await putData(endpoint, {}); 
+      // ✅ استدعاء API لقفل الـ shift باستخدام putData
+      await putData(endpoint, {});
 
-        // ✅ تحديث الـ context
-        closeShift();
+      // ✅ تحديث الـ context
+      closeShift();
 
-        // ✅ مسح بيانات الـ shift من sessionStorage
-        sessionStorage.removeItem("shift_start_time");
-        sessionStorage.removeItem("shift_data");
-        sessionStorage.clear(); 
+      // ✅ مسح بيانات الـ shift من sessionStorage
+      sessionStorage.removeItem("shift_start_time");
+      sessionStorage.removeItem("shift_data");
+      sessionStorage.clear();
 
-        // ✅ عرض رسالة النجاح
-        toast.success(t("ShiftClosedSuccessfully"));
+      // ✅ عرض رسالة النجاح
+      toast.success(t("ShiftClosedSuccessfully"));
 
-        // ✅ الانتقال لصفحة تسجيل الدخول
-        navigate("/login");
+      // ✅ الانتقال لصفحة تسجيل الدخول
+      navigate("/login");
     } catch (err) {
-        // 🛑 معالجة الأخطاء - الـ Hook يرمي الخطأ (throw err)
-        console.error("Close shift error:", err);
-        // نعرض رسالة الخطأ للمستخدم
-        toast.error(err?.response?.data?.message || t("FailedToCloseShift"));
-    } 
+      // 🛑 معالجة الأخطاء - الـ Hook يرمي الخطأ (throw err)
+      console.error("Close shift error:", err);
+      // نعرض رسالة الخطأ للمستخدم
+      toast.error(err?.response?.data?.message || t("FailedToCloseShift"));
+    }
   };
 
 
   const handleLogout = async () => {
     try {
-        await postData("api/admin/cashier-shift/logout", {});
-        sessionStorage.clear();
-        toast.success(t("Logged out successfully"));
-        navigate("/login");
+      await postData("api/admin/cashier-shift/logout", {});
+      sessionStorage.clear();
+      toast.success(t("Logged out successfully"));
+      navigate("/login");
     } catch (err) {
       toast.error(err?.message || t("Error while logging out"));
     }
   };
-  
+
   // 🛑 تم حذف دالة CustomerModal المكررة لأنك تستخدم AddCustomer المستورد
 
   return (
     <>
-      <div className="text-gray-800 px-4 py-5 md:px-6 mb-6 w-full z-50 bg-white shadow-md">
-        <div className="flex items-center justify-between gap-4">
-          {/* الجزء الأيسر */}
-          <div className="flex items-center gap-2">
-            {location.pathname !== "/shift" &&
-              location.pathname !== "/cashier" && (
-                <button
-                  onClick={() => navigate(-1)}
-                  className="font-bold text-center px-1 pb-1 hover:bg-purple-200 cursor-pointer hover:text-gray-800 rounded bg-bg-primary text-3xl text-white transition-colors duration-200"
-                  title="Go back"
-                >
-                  ←
-                </button>
-              )}
+      {/* الحاوية الرئيسية للخلفية الرمادية الباهتة */}
+      <div className="w-full shadow-md px-4 py-5 md:px-6  z-50 border-b border-gray-100">
+        <div className="flex items-center justify-between gap-4 max-w-[1920px] mx-auto">
 
+          {/* --- الجزء الأيسر: الأزرار والعملاء --- */}
+          <div className="flex items-center gap-4">
             <button
-              onClick={() => navigate("/profile")}
-              className="text-gray-600 hover:text-bg-primary"
+              onClick={() => navigate(-1)}
+              className="w-12 h-12 flex items-center justify-center bg-white rounded-2xl border border-gray-100 shadow-sm text-gray-400 hover:text-gray-600 transition-all"
             >
-              <FaUserCircle className="text-2xl md:text-3xl" />
+              <span className="text-2xl">←</span>
             </button>
 
-            <button
-              onClick={handleDueUsers}
-              className="text-gray-600 hover:text-bg-primary"
-            >
-              <FaUsers className="text-2xl md:text-3xl" />
-            </button>
+            <div className="bg-white p-1.5 rounded-[28px] border border-gray-100 shadow-sm flex items-center gap-2">
+              <Tabs value={currentTab} onValueChange={handleTabChange}>
+                <TabsList className="bg-transparent h-auto gap-2 p-0">
+                  <TabsTrigger
+                    value="take_away"
+                    className="flex flex-col items-center justify-center w-[110px] py-3 rounded-[22px] border border-transparent data-[state=active]:bg-[#7b61ff] data-[state=active]:text-white text-gray-400 transition-all duration-300"
+                  >
+                    <div className="w-8 h-8 rounded-full border border-current flex items-center justify-center mb-1 opacity-80">
+                      <FaListAlt className="text-sm" />
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider">{t("take_away")}</span>
+                  </TabsTrigger>
 
-            <button
-              onClick={handleAllOrders}
-              className="text-gray-600 hover:text-bg-primary"
-              title={t("AllOrders")}
-            >
-              <FaListAlt className="text-2xl md:text-3xl" />
-            </button>
+                  <TabsTrigger
+                    value="online-order"
+                    className="flex flex-col items-center justify-center w-[110px] py-3 rounded-[22px] border border-gray-50 bg-white text-gray-400 data-[state=active]:bg-[#7b61ff] data-[state=active]:text-white transition-all shadow-sm"
+                  >
+                    <div className="w-8 h-8 rounded-full border border-current flex items-center justify-center mb-1 opacity-80">
+                      <FaUsers className="text-sm" />
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider">{t("OnlineOrders")}</span>
+                  </TabsTrigger>
 
-            <button
-              onClick={handleExpenses}
-              className="text-bg-secondary hover:text-teal-800"
-              title="Add Expense"
-            >
-              <FaDollarSign className="text-2xl md:text-3xl" />
-            </button>
-            
-            {/* ✅ استبدال SELECT CUSTOMER بمكون Combobox (مع البحث) */}
-            <CustomerSearchCombobox
-                customers={customers}
-                selectedCustomer={selectedCustomer}
-                onSelect={(id) => {
-                    setSelectedCustomer(id);
-                    sessionStorage.setItem("selected_customer_id", id);
-                }}
-                t={t}
-            />
+                  <TabsTrigger
+                    value="return"
+                    className="flex flex-col items-center justify-center w-[110px] py-3 rounded-[22px] border border-gray-50 bg-white text-gray-400 data-[state=active]:bg-[#7b61ff] data-[state=active]:text-white transition-all shadow-sm"
+                  >
+                    <div className="w-8 h-8 rounded-full border border-current flex items-center justify-center mb-1 opacity-80">
 
-            {/* ADD CUSTOMER */}
-            <button
-              onClick={() => setShowCustomerModal(true)}
-              className="px-3 py-1 text-sm  bg-white text-bg-primary border border-bg-primary rounded"
-            >
-              + {t("Customer")}
-            </button>
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider">{t("Return")}</span>
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
 
 
-
-            <Tabs value={currentTab} onValueChange={handleTabChange}>
-              <TabsList className="flex gap-2 bg-transparent p-0 ml-2">
-                <TabsTrigger
-                  value="online-order"
-                  className="px-3 py-1 text-sm font-semibold bg-white text-bg-primary border border-bg-primary data-[state=active]:bg-bg-primary data-[state=active]:text-white transition-colors duration-200"
-                >
-                  {t("OnlineOrders")}
-                </TabsTrigger>
-                <TabsTrigger
-                  value="take_away"
-                  className="px-3 py-1 text-sm font-semibold bg-white text-bg-primary border border-bg-primary data-[state=active]:bg-bg-primary data-[state=active]:text-white transition-colors duration-200"
-                >
-                  {t("take_away")}
-                </TabsTrigger>
-{/* التاب الجديدة: Return */}
-  <TabsTrigger
-    value="return"
-    className="px-3 py-1 text-sm font-semibold bg-white text-bg-primary border border-bg-primary data-[state=active]:bg-bg-primary data-[state=active]:text-white transition-colors duration-200"
-  >
-    {t("Return") || "Return"} {/* لو مفيش ترجمة، هيظهر Return */}
-  </TabsTrigger>
-
-              </TabsList>
-            </Tabs>
           </div>
 
-          {/* اللوجو */}
-          <a
-            href="https://Food2go.online"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center"
-          >
-            <img
-              src={logo}
-              alt="Systego Logo"
-              className="h-18 w-18 object-contain cursor-pointer"
+          {/* --- الجزء الأوسط: اللوجو والفاصل --- */}
+          <div className="flex items-center gap-6">
+            <div className="h-10 w-[1.5px] bg-gray-200 hidden lg:block" />
+            <img src={logo} alt="Logo" className="h-14 w-auto object-contain" />
+          </div>
+          <div className="flex items-center gap-2 ml-2">
+            <CustomerSearchCombobox
+              customers={customers}
+              selectedCustomer={selectedCustomer}
+              onSelect={(id) => {
+                setSelectedCustomer(id);
+                sessionStorage.setItem("selected_customer_id", id);
+              }}
+              t={t}
             />
-          </a>
-
-          {/* الجزء الأيمن */}
-          <div className="flex items-center gap-2">
-            {location.pathname !== "/shift" &&
-              location.pathname !== "/cashier" && (
-                <>
-                  <div className="flex items-center text-xs md:text-sm font-medium text-gray-600">
-                    <span className="text-gray-500 mr-1 hidden sm:inline">
-                      {t("shift")}:
-                    </span>
-                    <span className="bg-gray-100 px-2 py-1 rounded-md text-gray-800 text-xs md:text-sm">
-                      {formatElapsedTime()}
-                    </span>
-                  </div>
-
-                  <button
-                    onClick={handleCloseShift}
-                    disabled={loading || reportLoading}
-                    className="bg-bg-primary text-white px-3 py-1 md:px-4 md:py-2 rounded-md text-xs md:text-sm font-semibold hover:bg-purple-700 disabled:opacity-50 transition"
-                  >
-                    {loading || reportLoading ? (
-                      "..."
-                    ) : (
-                      <>
-                        <span className="hidden md:inline">
-                          {t("closeshift")}
-                        </span>
-                        <span className="md:hidden">{t("Close")}</span>
-                      </>
-                    )}
-                  </button>
-                </>
-              )}
-
-            {/* تبديل اللغة */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">AR</span>
-              <button
-                onClick={toggleLanguage}
-                className={`relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                  isArabic ? "bg-bg-primary" : "bg-gray-300"
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                    !isArabic ? "translate-x-6" : "translate-x-0"
-                  }`}
-                />
-              </button>
-              <span className="text-sm font-medium">EN</span>
-            </div>
-            <Notifications />
-
             <button
-              onClick={handleLogout}
-              className="bg-gray-200 text-gray-800 px-3 py-1 md:px-4 md:py-2 rounded-md text-xs md:text-sm font-semibold hover:bg-gray-300 transition"
+              onClick={() => setShowCustomerModal(true)}
+              className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white border border-gray-100 text-[#7b61ff] shadow-sm hover:bg-gray-50 transition-all"
             >
-              <span className="hidden sm:inline">{t("logout")}</span>
-              <span className="sm:hidden">{t("Exit")}</span>
+              <span className="text-2xl font-light">+</span>
             </button>
+          </div>
+          {/* --- الجزء الأيمن: العداد والقائمة المنسدلة للمستخدم --- */}
+          <div className="flex items-center gap-3">
+
+            <div className="bg-white px-5 py-2 rounded-[22px] border border-gray-100 shadow-sm flex flex-col items-center min-w-[120px]">
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <span className="text-gray-400 text-xs">🕒</span>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{t("shift")}</span>
+              </div>
+              <span className="text-[#ff3b3b] font-mono font-bold text-lg leading-none tracking-widest">
+                {formatElapsedTime()}
+              </span>
+            </div>
+
+            <div className="w-12 h-12 flex items-center justify-center bg-white rounded-2xl border border-gray-100 shadow-sm text-gray-400">
+              <Notifications />
+            </div>
+
+            {/* 🚀 القائمة المنسدلة للمستخدم (مطابقة تماماً للصورة) */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex flex-col items-center justify-center w-14 h-14 bg-white rounded-2xl border border-gray-100 shadow-sm group outline-none hover:border-[#7b61ff] transition-all">
+                  <div className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 group-hover:text-[#7b61ff] group-hover:border-[#7b61ff] transition-all">
+                    <User className="w-5 h-5" />
+                  </div>
+                  <span className="text-[9px] font-bold text-gray-400 uppercase mt-1 group-hover:text-[#7b61ff]">User</span>
+                </button>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent className="w-64 bg-white rounded-xl shadow-xl border-gray-100 p-2" align="end">
+                <div className="px-3 py-2">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Authenticated as</p>
+                  <p className="text-sm font-extrabold text-[#1a1a1a]">Administrator</p>
+                </div>
+
+                <DropdownMenuSeparator className="bg-gray-50" />
+
+                <DropdownMenuItem onClick={() => navigate("/profile")} className="flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:bg-gray-50">
+                  <User className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm font-semibold text-gray-600">Profile</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem onClick={toggleLanguage} className="flex items-center justify-between p-3 rounded-lg cursor-pointer hover:bg-gray-50">
+                  <div className="flex items-center gap-3">
+                    <Languages className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm font-semibold text-gray-600">تغيير للعربية</span>
+                  </div>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem onClick={handleAllOrders} className="flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:bg-gray-50">
+                  <ListOrdered className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm font-semibold text-gray-600">AllOrders</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem onClick={handleDueUsers} className="flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:bg-gray-50">
+                  <Users className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm font-semibold text-gray-600">Due Users</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem onClick={handleExpenses} className="flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:bg-gray-50">
+                  <DollarSign className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm font-semibold text-gray-600">Expenses</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator className="bg-gray-50" />
+
+                <DropdownMenuItem onClick={handleCloseShift} className="flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:bg-red-50 group">
+                  <XCircle className="w-4 h-4 text-red-500" />
+                  <span className="text-sm font-bold text-red-600">Close Shift</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem onClick={handleLogout} className="flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:bg-gray-50">
+                  <LogOut className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm font-semibold text-gray-500">Logout</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
           </div>
         </div>
       </div>
 
-      {/* المودالز */}
-      {showExpensesModal && (
-        <ExpensesModal onClose={() => setShowExpensesModal(false)} />
-      )}
-
+      {/* --- المودالز تظل كما هي --- */}
+      {showExpensesModal && <ExpensesModal onClose={() => setShowExpensesModal(false)} />}
       {showPasswordModal && (
         <PasswordConfirmModal
           onConfirm={handlePasswordConfirmed}
@@ -473,7 +469,6 @@ export default function Navbar() {
           loading={reportLoading}
         />
       )}
-
       {showReportModal && (
         <EndShiftReportModal
           reportData={endShiftReport}
@@ -481,12 +476,7 @@ export default function Navbar() {
           onConfirmClose={handleClose}
         />
       )}
-      {showCustomerModal && (
-        <AddCustomer onClose={() => setShowCustomerModal(false)} />
-      )}
-
-
-
+      {showCustomerModal && <AddCustomer onClose={() => setShowCustomerModal(false)} />}
     </>
   );
 }

@@ -238,28 +238,29 @@ export default function EndShiftReportModal({ reportData, onClose, onConfirmClos
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" dir={isArabic ? "rtl" : "ltr"}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1000] p-4 font-sans">
+      <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-300" dir={isArabic ? "rtl" : "ltr"}>
 
-        {/* Header */}
-        <div className="bg-gray-900 text-white p-5 flex justify-between items-center">
-          <div>
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <FaReceipt className="text-purple-400" />
+        {/* Premium Header */}
+        <div className="bg-bg-primary p-6 text-white flex justify-between items-center relative overflow-hidden">
+          <div className="z-10">
+            <h2 className="text-2xl font-black tracking-tight flex items-center gap-2">
+              <FaReceipt className="text-white/80" />
               {t("EndShiftReport")}
             </h2>
-            <p className="text-xs text-gray-400 mt-1 opacity-80">{message}</p>
+            <p className="text-white/70 text-xs font-bold uppercase tracking-widest mt-1 opacity-80">{message}</p>
           </div>
-          {/* <button onClick={onClose} className="text-gray-400 hover:text-white transition">
-            <FaTimes size={20} />
-          </button> */}
+          <button onClick={onClose} className="z-10 w-10 h-10 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-full transition-colors">
+            <FaTimes size={18} />
+          </button>
+          <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full" />
         </div>
 
         {/* Scrollable Content */}
-        <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+        <div className="p-8 overflow-y-auto custom-scrollbar flex-1 space-y-8">
 
           {/* Shift Info Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <CompactStatCard
               icon={FaClock}
               title={t("ShiftDuration")}
@@ -273,49 +274,49 @@ export default function EndShiftReportModal({ reportData, onClose, onConfirmClos
             />
           </div>
 
-          {/* Financial Breakdown Table (حسب الـ JSON) */}
-          <div className="mb-6 border border-gray-200 rounded-xl overflow-hidden">
-            <div className="bg-gray-50 p-3 border-b border-gray-200 flex justify-between items-center">
-              <h3 className="font-bold text-gray-700 flex items-center gap-2">
-                <FaMoneyBillWave className="text-green-600" />
+          {/* Financial Breakdown Table */}
+          <div className="border border-gray-100 rounded-[2rem] overflow-hidden shadow-sm">
+            <div className="bg-gray-50/50 p-4 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="font-black text-[10px] uppercase tracking-widest text-gray-400 flex items-center gap-2">
+                <FaMoneyBillWave size={14} className="text-bg-primary" />
                 {t("FinancialDetails")}
               </h3>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-gray-100 text-gray-600 uppercase text-xs">
-                  <tr>
-                    <th className="px-4 py-3 text-start">{t("Account")}</th>
-                    <th className="px-4 py-3 text-start">{t("Sales")}</th>
-                    <th className="px-4 py-3 text-start">{t("Expenses")}</th>
-                    <th className="px-4 py-3 text-start">{t("Net")}</th>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-white text-gray-400 text-[10px] font-black uppercase tracking-wider">
+                    <th className="px-6 py-4 text-start">{t("Account")}</th>
+                    <th className="px-6 py-4 text-start">{t("Sales")}</th>
+                    <th className="px-6 py-4 text-start">{t("Expenses")}</th>
+                    <th className="px-6 py-4 text-start">{t("Net")}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-gray-50">
                   {accounts.map((acc, index) => (
-                    <tr key={index} className="hover:bg-gray-50/50">
-                      <td className="px-4 py-3 font-medium text-gray-800">
+                    <tr key={index} className="hover:bg-purple-50/30 transition-colors">
+                      <td className="px-6 py-4 font-bold text-gray-700">
                         {acc.name === "cash" ? t("Cash") : acc.name.toUpperCase()}
                       </td>
-                      <td className="px-4 py-3 text-green-600 font-bold">
+                      <td className="px-6 py-4 text-green-600 font-black">
                         {formatAmount(acc.salesAmount)}
                       </td>
-                      <td className="px-4 py-3 text-red-500">
+                      <td className="px-6 py-4 text-red-400 font-bold">
                         {acc.expensesAmount > 0 ? `-${formatAmount(acc.expensesAmount)}` : "-"}
                       </td>
-                      <td className="px-4 py-3 font-bold text-gray-900 bg-gray-50">
+                      <td className="px-6 py-4 font-black text-gray-900 bg-gray-50/50">
                         {formatAmount(acc.net)}
                       </td>
                     </tr>
                   ))}
 
                   {/* Totals Row */}
-                  <tr className="bg-gray-800 text-white font-bold">
-                    <td className="px-4 py-3">{t("Total")}</td>
-                    <td className="px-4 py-3 text-green-300">{formatAmount(totals.totalSales)}</td>
-                    <td className="px-4 py-3 text-red-300">-{formatAmount(totals.totalExpenses)}</td>
-                    <td className="px-4 py-3 text-white">{formatAmount(totals.netCashInDrawer)}</td>
+                  <tr className="bg-gray-900 text-white font-black">
+                    <td className="px-6 py-5 rounded-bl-[1.5rem]">{t("Total")}</td>
+                    <td className="px-6 py-5 text-green-400">{formatAmount(totals.totalSales)}</td>
+                    <td className="px-6 py-5 text-red-400">-{formatAmount(totals.totalExpenses)}</td>
+                    <td className="px-6 py-5 text-white rounded-br-[1.5rem]">{formatAmount(totals.netCashInDrawer)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -324,23 +325,26 @@ export default function EndShiftReportModal({ reportData, onClose, onConfirmClos
 
           {/* Expenses Detail Section */}
           {expensesList.length > 0 && (
-            <div className="mb-6">
-              <SectionHeader icon={FaArrowDown} title={t("ExpensesBreakdown")} />
-              <div className="space-y-2">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 ml-1">
+                <FaArrowDown className="text-red-500" />
+                <h3 className="font-black text-[10px] uppercase tracking-widest text-gray-400">{t("ExpensesBreakdown")}</h3>
+              </div>
+              <div className="space-y-3">
                 {expensesList.map((exp, idx) => (
-                  <div key={idx} className="flex justify-between items-center p-3 bg-red-50 border border-red-100 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-500 text-xs font-bold">
+                  <div key={idx} className="flex justify-between items-center p-4 bg-gray-50 border border-gray-100 rounded-2xl hover:bg-white hover:shadow-md transition-all group">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-red-500 font-black text-xs border border-gray-100 group-hover:bg-red-500 group-hover:text-white transition-all">
                         {idx + 1}
                       </div>
                       <div>
-                        <p className="font-semibold text-gray-800 text-sm">{exp.description}</p>
-                        <p className="text-xs text-gray-500 flex items-center gap-1">
-                          {t("From")}: <span className="font-medium">{exp.account?.name}</span>
+                        <p className="font-bold text-gray-800 text-sm">{exp.description}</p>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight flex items-center gap-1.5 mt-0.5">
+                          <FaArrowUp size={8} /> {t("Account")}: <span className="text-gray-500">{exp.account?.name}</span>
                         </p>
                       </div>
                     </div>
-                    <span className="font-bold text-red-600">-{formatAmount(Math.abs(exp.amount || 0))}</span>
+                    <span className="font-black text-red-500 text-lg">-{formatAmount(Math.abs(exp.amount || 0))}</span>
                   </div>
                 ))}
               </div>
@@ -348,43 +352,38 @@ export default function EndShiftReportModal({ reportData, onClose, onConfirmClos
           )}
 
           {/* Final Net Cash Card */}
-          <div className="bg-gradient-to-r from-gray-800 to-gray-900 rounded-xl p-6 text-center text-white shadow-lg relative overflow-hidden">
-            <div className="relative z-10">
-              <p className="text-gray-400 text-sm font-medium uppercase tracking-widest mb-1">{t("NetCashInDrawer")}</p>
-              <h1 className="text-4xl font-black tracking-tight">{formatAmount(totals.netCashInDrawer)}</h1>
-              <p className="text-xs text-gray-500 mt-2 opacity-70">
+          <div className="bg-gradient-to-br from-gray-800 to-black rounded-[2.5rem] p-8 text-center text-white shadow-xl relative overflow-hidden group">
+            <div className="relative z-10 animate-in fade-in slide-in-from-bottom duration-700">
+              <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-2">{t("NetCashInDrawer")}</p>
+              <h1 className="text-5xl font-black tracking-tighter group-hover:scale-110 transition-transform duration-500">{formatAmount(totals.netCashInDrawer)}</h1>
+              <div className="w-16 h-1 bg-bg-primary mx-auto my-4 rounded-full opacity-50" />
+              <p className="text-[10px] text-white/30 font-bold">
                 {t("CalculatedFrom")}: {t("TotalSales")} - {t("TotalExpenses")}
               </p>
             </div>
             {/* Background decoration */}
-            <FaMoneyBillWave className="absolute -bottom-4 -right-4 text-8xl text-white opacity-5 rotate-12" />
+            <FaMoneyBillWave className="absolute -bottom-6 -right-6 text-9xl text-white opacity-5 rotate-12 group-hover:rotate-45 transition-transform duration-1000" />
+            <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_-20%,rgba(255,255,255,0.1),transparent)]" />
           </div>
 
         </div>
 
         {/* Footer Actions */}
-        <div className="p-5 border-t border-gray-100 bg-gray-50 flex gap-4">
+        <div className="p-8 border-t border-gray-100 bg-white flex gap-4">
           <button
             onClick={handlePrint}
-            className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-50 hover:border-gray-400 transition shadow-sm flex items-center gap-2"
+            className="w-16 h-16 flex items-center justify-center bg-gray-50 border border-gray-100 text-gray-400 rounded-2xl hover:bg-gray-100 hover:text-bg-primary transition-all shadow-sm"
           >
-            <FaPrint /> {t("Print")}
+            <FaPrint size={20} />
           </button>
 
-          <div className="flex-1 flex gap-3">
-            {/* <button
-              onClick={onClose}
-              className="flex-1 px-6 py-3 bg-gray-200 text-gray-800 rounded-xl font-bold hover:bg-gray-300 transition"
-            >
-              {t("Cancel")}
-            </button> */}
-            <button
-              onClick={onConfirmClose}
-              className="flex-1 px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 shadow-lg shadow-purple-200 transition"
-            >
-              {t("ConfirmCloseShift")}
-            </button>
-          </div>
+          <button
+            onClick={onConfirmClose}
+            className="flex-1 px-8 py-5 bg-bg-primary text-white rounded-3xl font-black uppercase tracking-widest shadow-xl shadow-purple-100 hover:shadow-2xl hover:shadow-purple-200 hover:-translate-y-1 transition-all active:translate-y-0 flex items-center justify-center gap-3"
+          >
+            <FaCheckCircle size={18} />
+            {t("ConfirmCloseShift")}
+          </button>
         </div>
       </div>
 

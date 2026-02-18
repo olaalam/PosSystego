@@ -6,7 +6,14 @@ import ProductDetailModalWrapper from "./ProductDetailModalWrapper";
 
 // دالة لحساب السعر مع الإضافات (Addons + Extras) - خاصة بـ Dine-in
 const calculatePriceWithAddons = (item) => {
-  let basePrice = Number(item.originalPrice || item.price || 0);
+  const orderedQty = Number(item.count || 1);
+  const startQty = Number(item.start_quantaty || 0);
+  const wholePrice = Number(item.whole_price || 0);
+
+  // الشرط: إذا كان العدد المطلوب أكبر من أو يساوي البداية، استخدم سعر الجملة
+  let basePrice = (startQty > 0 && orderedQty >= startQty && wholePrice > 0)
+    ? wholePrice
+    : Number(item.price_after_discount || item.originalPrice || item.price || 0);
 
   let addonsTotal = 0;
 
@@ -46,42 +53,43 @@ const ItemRow = ({
   handleVoidItem,
   handleRemoveFrontOnly,
   updateOrderItems,
-    handleIncrease,
+  handleIncrease,
   handleDecrease,
-   allowQuantityEdit,
+  allowQuantityEdit,
   orderItems
 }) => {
   console.log("ItemRow → Rendering item:", item);
   const statusInfo = PREPARATION_STATUSES[item.preparation_status] || PREPARATION_STATUSES.pending;
   const StatusIcon = statusInfo.icon;
 
-  const hasDiscount = item.discount && typeof item.discount === "object";
+  const orderedQty = Number(item.count || 1);
+  const startQty = Number(item.start_quantaty || 0);
+  const isWholesale = startQty > 0 && orderedQty >= startQty && Number(item.whole_price || 0) > 0;
+  const hasDiscount = (item.discount && typeof item.discount === "object") || isWholesale;
   const isItemLoading = itemLoadingStates[item.temp_id] || false;
   const isDoneItem = item.preparation_status === "done";
 
   if (!item) return null;
 
-  // الحل السحري: نحسب السعر الصحيح في Dine-in بنفسنا
-  const finalUnitPrice = orderType === "dine_in"
-    ? calculatePriceWithAddons(item)  // نحسب Addons يدويًا
-    : Number(item.price) || 0;        // في Takeaway/Delivery السعر جاي مظبوط أصلًا
+  // الحل السحري: نحسب السعر الصحيح دائمًا لتحديث سعر الجملة عند تغيير الكمية
+  const finalUnitPrice = calculatePriceWithAddons(item);
 
   const safePrice = Number(finalUnitPrice.toFixed(2));
   const safeOriginalPrice = Number(item.originalPrice || item.price || 0).toFixed(2);
 
   // للمنتجات بالوزن (مثل اللحوم)
-  const displayQuantity = item.weight_status === 1 
-    ? `${item.count} kg` 
+  const displayQuantity = item.weight_status === 1
+    ? `${item.count} kg`
     : item.count;
 
   // الكمية المستخدمة في الحساب (weight أو count)
-  const quantityForCalc = item.weight_status === 1 
+  const quantityForCalc = item.weight_status === 1
     ? Number(item.quantity || item.count || 1)
     : Number(item.count || 1);
 
   // إجمالي السعر بعد الكمية
   const totalPrice = (safePrice * quantityForCalc).toFixed(2);
-  const totalOriginalPrice = hasDiscount 
+  const totalOriginalPrice = hasDiscount
     ? (Number(safeOriginalPrice) * quantityForCalc).toFixed(2)
     : null;
 
@@ -158,95 +166,95 @@ const ItemRow = ({
         </div>
       </td>
 
-{/* Quantity */}
-<td className="py-3 px-4 text-center align-top">
-  {item.weight_status === 1 ? (
-    <div className="flex items-center justify-center gap-1">
-      
-      {/* Minus */}
-      <button
-        onClick={() => {
-          const currentQty = parseFloat(item.quantity) || 0;
-          const newQty = Math.max(0.25, currentQty - 0.25);
-          const updatedItems = orderItems.map((i) =>
-            i.temp_id === item.temp_id ? { ...i, quantity: newQty.toFixed(2) } : i
-          );
-          updateOrderItems(updatedItems);
-        }}
-        className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 transition-colors"
-      >
-        −
-      </button>
+      {/* Quantity */}
+      <td className="py-3 px-4 text-center align-top">
+        {item.weight_status === 1 ? (
+          <div className="flex items-center justify-center gap-1">
 
-      {/* Weight Input */}
-      <input
-        type="text"
-        value={item.quantity}
-        onChange={(e) => {
-          let val = e.target.value;
+            {/* Minus */}
+            <button
+              onClick={() => {
+                const currentQty = parseFloat(item.quantity) || 0;
+                const newQty = Math.max(0.25, currentQty - 0.25);
+                const updatedItems = orderItems.map((i) =>
+                  i.temp_id === item.temp_id ? { ...i, quantity: newQty.toFixed(2) } : i
+                );
+                updateOrderItems(updatedItems);
+              }}
+              className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 transition-colors"
+            >
+              −
+            </button>
 
-          // 👇 يسمح بالأرقام + النقطة فقط (بدون تحديد عدد الخانات)
-          if (!/^\d*\.?\d*$/.test(val)) return;
+            {/* Weight Input */}
+            <input
+              type="text"
+              value={item.quantity}
+              onChange={(e) => {
+                let val = e.target.value;
 
-          // لو فاضي أو نقطة لوحدها، نسمح به مؤقتاً
-          if (val === "" || val === ".") {
-            const updatedItems = orderItems.map((i) =>
-              i.temp_id === item.temp_id ? { ...i, quantity: val } : i
-            );
-            updateOrderItems(updatedItems);
-            return;
-          }
+                // 👇 يسمح بالأرقام + النقطة فقط (بدون تحديد عدد الخانات)
+                if (!/^\d*\.?\d*$/.test(val)) return;
 
-          // لو الرقم صح، نحدثه مباشرة بدون قيود
-          const updatedItems = orderItems.map((i) =>
-            i.temp_id === item.temp_id ? { ...i, quantity: val } : i
-          );
-          updateOrderItems(updatedItems);
-        }}
-        onBlur={() => {
-          // عند ترك الحقل → نتأكد من صحة الرقم
-          let num = parseFloat(item.quantity);
-          
-          // لو مش رقم صحيح أو أقل من 0.25، نحطه 0.25
-          if (isNaN(num) || num < 0.25) {
-            num = 0.25;
-          }
-          
-          const updatedItems = orderItems.map((i) =>
-            i.temp_id === item.temp_id
-              ? { ...i, quantity: num.toFixed(2) }
-              : i
-          );
-          updateOrderItems(updatedItems);
-        }}
-        onKeyDown={(e) => {
-          // لو ضغط Enter، نعمل blur عشان يتنسق الرقم
-          if (e.key === 'Enter') {
-            e.target.blur();
-          }
-        }}
-        className="w-20 text-center font-medium border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-bg-primary"
-        placeholder="0.00"
-      />
+                // لو فاضي أو نقطة لوحدها، نسمح به مؤقتاً
+                if (val === "" || val === ".") {
+                  const updatedItems = orderItems.map((i) =>
+                    i.temp_id === item.temp_id ? { ...i, quantity: val } : i
+                  );
+                  updateOrderItems(updatedItems);
+                  return;
+                }
 
-      <span className="text-xs text-gray-600">kg</span>
+                // لو الرقم صح، نحدثه مباشرة بدون قيود
+                const updatedItems = orderItems.map((i) =>
+                  i.temp_id === item.temp_id ? { ...i, quantity: val } : i
+                );
+                updateOrderItems(updatedItems);
+              }}
+              onBlur={() => {
+                // عند ترك الحقل → نتأكد من صحة الرقم
+                let num = parseFloat(item.quantity);
 
-      {/* Plus */}
-      <button
-        onClick={() => {
-          const currentQty = parseFloat(item.quantity) || 0;
-          const newQty = currentQty + 0.25;
-          const updatedItems = orderItems.map((i) =>
-            i.temp_id === item.temp_id ? { ...i, quantity: newQty.toFixed(2) } : i
-          );
-          updateOrderItems(updatedItems);
-        }}
-        className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 transition-colors"
-      >
-        +
-      </button>
-    </div>
-  ) :!(item.is_reward || item.is_deal) && allowQuantityEdit ? (
+                // لو مش رقم صحيح أو أقل من 0.25، نحطه 0.25
+                if (isNaN(num) || num < 0.25) {
+                  num = 0.25;
+                }
+
+                const updatedItems = orderItems.map((i) =>
+                  i.temp_id === item.temp_id
+                    ? { ...i, quantity: num.toFixed(2) }
+                    : i
+                );
+                updateOrderItems(updatedItems);
+              }}
+              onKeyDown={(e) => {
+                // لو ضغط Enter، نعمل blur عشان يتنسق الرقم
+                if (e.key === 'Enter') {
+                  e.target.blur();
+                }
+              }}
+              className="w-20 text-center font-medium border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-bg-primary"
+              placeholder="0.00"
+            />
+
+            <span className="text-xs text-gray-600">kg</span>
+
+            {/* Plus */}
+            <button
+              onClick={() => {
+                const currentQty = parseFloat(item.quantity) || 0;
+                const newQty = currentQty + 0.25;
+                const updatedItems = orderItems.map((i) =>
+                  i.temp_id === item.temp_id ? { ...i, quantity: newQty.toFixed(2) } : i
+                );
+                updateOrderItems(updatedItems);
+              }}
+              className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 transition-colors"
+            >
+              +
+            </button>
+          </div>
+        ) : !(item.is_reward || item.is_deal) && allowQuantityEdit ? (
           <div className="flex items-center justify-center gap-1">
             <button
               onClick={() => handleDecrease(item.temp_id)}
@@ -266,7 +274,7 @@ const ItemRow = ({
         ) : (
           <span className="min-w-[24px] text-center font-medium">1 (ثابت)</span>
         )}
-</td>
+      </td>
 
 
       {/* Preparation Status */}

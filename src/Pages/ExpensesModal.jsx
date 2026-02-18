@@ -30,25 +30,25 @@ export default function ExpensesModal({ onClose, expense = null, refetchParent }
   const [note, setNote] = useState("");
   const [financial_accountId, setFinancialAccountId] = useState("");
 
-// -----------------------------
- // Load EDIT DATA from API
- // -----------------------------
- useEffect(() => {
- if (isEditMode && editData?.data?.expense) {
- const e = editData.data?.expense;
+  // -----------------------------
+  // Load EDIT DATA from API
+  // -----------------------------
+  useEffect(() => {
+    if (isEditMode && editData?.data?.expense) {
+      const e = editData.data?.expense;
 
- setExpenseName(e.name || "");
- 
- // تأكد من تعيين ID الفئة، وقم بتحويله إلى String
- setCategoryId(e.Category_id?._id ? String(e.Category_id._id) : ""); 
- 
- setAmount(e.amount || "");
- setNote(e.note || "");
- 
- // تأكد من تعيين ID الحساب، وقم بتحويله إلى String
- setFinancialAccountId(e.financial_accountId?._id ? String(e.financial_accountId._id) : "");
- }
- }, [isEditMode, editData, selectionData]); // ✅ أضف selectionData هنا
+      setExpenseName(e.name || "");
+
+      // تأكد من تعيين ID الفئة، وقم بتحويله إلى String
+      setCategoryId(e.Category_id?._id ? String(e.Category_id._id) : "");
+
+      setAmount(e.amount || "");
+      setNote(e.note || "");
+
+      // تأكد من تعيين ID الحساب، وقم بتحويله إلى String
+      setFinancialAccountId(e.financial_accountId?._id ? String(e.financial_accountId._id) : "");
+    }
+  }, [isEditMode, editData, selectionData]); // ✅ أضف selectionData هنا
 
   // -----------------------------
   // SUBMIT
@@ -99,10 +99,10 @@ export default function ExpensesModal({ onClose, expense = null, refetchParent }
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999]">
-      <div className="bg-white rounded-xl p-6 w-[95%] max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-xl p-3 w-[95%] max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-2">
           <h2 className="text-xl font-bold">
             {isEditMode ? t("EditExpense") : t("AddExpense")}
           </h2>
@@ -115,7 +115,7 @@ export default function ExpensesModal({ onClose, expense = null, refetchParent }
           type="text"
           value={expense_name}
           onChange={(e) => setExpenseName(e.target.value)}
-          className="w-full p-2 border rounded mb-3"
+          className="w-full p-2 border rounded mb-2"
         />
 
         {/* Category */}
@@ -123,7 +123,7 @@ export default function ExpensesModal({ onClose, expense = null, refetchParent }
         <select
           value={Category_id}
           onChange={(e) => setCategoryId(e.target.value)}
-          className="w-full p-2 border rounded mb-3"
+          className="w-full p-2 border rounded mb-2"
         >
           <option value="">{t("SelectCategory")}</option>
           {categories.map((cat) => (
@@ -139,7 +139,7 @@ export default function ExpensesModal({ onClose, expense = null, refetchParent }
           type="number"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          className="w-full p-2 border rounded mb-3"
+          className="w-full p-2 border rounded mb-2"
         />
 
         {/* Note */}
@@ -147,7 +147,7 @@ export default function ExpensesModal({ onClose, expense = null, refetchParent }
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className="w-full p-2 border rounded mb-3"
+          className="w-full p-2 border rounded mb-2"
         />
 
         {/* Financial Account */}
@@ -155,7 +155,7 @@ export default function ExpensesModal({ onClose, expense = null, refetchParent }
         <select
           value={financial_accountId}
           onChange={(e) => setFinancialAccountId(e.target.value)}
-          className="w-full p-2 border rounded mb-3"
+          className="w-full p-2 border rounded mb-2"
         >
           <option value="">{t("SelectAccount")}</option>
           {accounts.map((acc) => (
