@@ -868,8 +868,8 @@ const CheckOut = ({
                 </SelectItem>
                 {discountListData?.data?.discounts?.map((discount) => (
                   <SelectItem key={discount._id} value={String(discount._id)}>
-                    {discount.name} ({discount.amount}
-                    {discount.type === "percentage" ? "%" : t("EGP")})
+                    {discount.name} ({discount.amount})
+                    {/* {discount.type === "percentage" ? "%" : t("EGP")}) */}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -897,8 +897,8 @@ const CheckOut = ({
                 ?.filter((tax) => tax.status === true)
                 .map((tax) => (
                   <SelectItem key={tax._id} value={tax._id}>
-                    {tax.name} ({tax.amount}
-                    {tax.type === "percentage" ? "%" : ` ${t("EGP")} fixed`})
+                    {tax.name} ({tax.amount})
+                    {/* {tax.type === "percentage" ? "%" : ` ${t("EGP")} fixed`}) */}
                   </SelectItem>
                 ))}
             </SelectContent>
