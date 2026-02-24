@@ -2,7 +2,7 @@ import React, { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import SummaryRow from "./SummaryRow";
 import Loading from "@/components/Loading";
-import { Phone } from "lucide-react";
+import { Phone, CreditCard, PrinterIcon, Clock } from "lucide-react";
 
 // مكون الطباعة بنفس ديزاين الكاشير ريسيبت
 const PrintableOrder = React.forwardRef(({ orderItems, calculations, orderType, tableId, t, restaurantInfo }, ref) => {
@@ -343,7 +343,7 @@ export default function OrderSummary({
   };
 
   return (
-    <div className="flex-shrink-0 bg-white border-t-2 border-gray-200 pt-6 mt-4">
+    <div className="flex-shrink-0 bg-white border-t border-gray-100 pt-3 mt-2">
       {/* Hidden Print Component */}
       <div style={{ display: "none" }}>
         <PrintableOrder
@@ -357,16 +357,15 @@ export default function OrderSummary({
         />
       </div>
 
-      {/* Summary Display */}
-      <div className="bg-gray-50 p-6 rounded-lg shadow-inner mb-6">
+      {/* ===== Summary Card ===== */}
+      <div className="bg-gray-50 rounded-xl border border-gray-100 px-4 py-3 mb-3 space-y-1.5">
         <SummaryRow label={t("SubTotal")} value={subTotal} />
 
         {taxDetails && taxDetails.length > 0 ? (
           taxDetails.map((tax, index) => (
             <SummaryRow
               key={index}
-              label={`${tax.name} (${tax.amount}${tax.type === "precentage" ? "%" : " EGP"
-                })`}
+              label={`${tax.name} (${tax.amount}${tax.type === "precentage" ? "%" : " EGP"})`}
               value={tax.total}
             />
           ))
@@ -380,97 +379,92 @@ export default function OrderSummary({
             value={totalOtherCharge}
           />
         )}
-      </div>
 
-      {orderType === "dine_in" && (
-        <>
-          <div className="grid grid-cols-2 gap-4 items-center mb-4">
-            <p className="text-gray-600">{t("TotalOrderAmount")}:</p>
-            <p className="text-right text-lg font-semibold">
-              {totalAmountDisplay.toFixed(2)} {t("EGP")}
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-4 items-center mb-4">
-            <p className="text-gray-600">
-              {t("SelectedItems", { count: selectedPaymentCount })}:
-            </p>
-            <p className="text-right text-lg font-semibold text-bg-secondary">
-              {amountToPay.toFixed(2)} {t("EGP")}
-            </p>
-          </div>
-          <hr className="my-4 border-t border-gray-300" />
-        </>
-      )}
-
-      <div className="grid grid-cols-2 gap-4 items-center mb-6">
-        <p className="text-bg-primary text-xl font-bold">{t("AmountToPay")}</p>
-        <p className="text-right text-2xl font-bold text-teal-700">
-          {amountToPay.toFixed(2)} {t("EGP")}
-        </p>
-      </div>
-
-      {/* ✅ الجزء المعدّل: نشيل الـ Checkout ونظهر Apply Offer */}
-      <div className="flex  items-center gap-4 w-full">
-        {/* إذا كان في عرض معتمد → زر Apply Offer فقط */}
-        {offerManagement.approvedOfferData ? (
-          <div className="w-full">
-            <div className="bg-teal-50 border border-teal-300 rounded-lg p-4 mb-4 text-center">
-              <p className="font-bold text-teal-800">
-                {t("RewardItem")}: {offerManagement.approvedOfferData.product}
-              </p>
+        {/* Dine-in Selection Info */}
+        {orderType === "dine_in" && (
+          <>
+            <div className="border-t border-gray-200 pt-1.5 mt-1.5">
+              <div className="flex justify-between items-center text-xs text-gray-500">
+                <span>{t("TotalOrderAmount")}:</span>
+                <span className="font-semibold text-gray-700">{totalAmountDisplay.toFixed(2)} {t("EGP")}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs mt-1">
+                <span className="text-gray-500">{t("SelectedItems", { count: selectedPaymentCount })}:</span>
+                <span className="font-semibold text-teal-600">{amountToPay.toFixed(2)} {t("EGP")}</span>
+              </div>
             </div>
-
-            <div className="flex gap-3 justify-center">
-              <Button
-                onClick={async () => {
-                  const success = await offerManagement.applyApprovedOffer();
-                  if (success && onCheckout) onCheckout(); // نروح للدفع فورًا
-                }}
-                className="bg-bg-secondary hover:bg-teal-700 text-white text-lg px-10 py-6 font-bold flex-1"
-                disabled={isLoading}
-              >
-                {isLoading ? <Loading /> : <>Apply Offer & Checkout</>}
-              </Button>
-
-              <Button
-                onClick={offerManagement.cancelApprovedOffer}
-                variant="outline"
-                className="border-purple-500 text-purple-600 hover:bg-purple-50"
-                disabled={isLoading}
-              >
-                {t("Cancel")}
-              </Button>
-            </div>
-          </div>
-        ) : (
-          /* الحالة العادية: Checkout */
-          <div className="grid grid-cols-3 gap-4 w-full">
-            {/* زر Checkout & Print (يطبع) */}
-            <Button
-              onClick={() => onCheckout(true)} // true = print
-              className="bg-bg-primary text-white hover:bg-purple-700 text-lg px-8 py-6 font-bold flex-1"
-              disabled={isLoading || orderItemsLength === 0 || (orderType === "dine_in" && selectedPaymentCount === 0)}
-            >
-              {isLoading ? <Loading /> : t("Checkout&Print")}
-            </Button>
-
-            {/* زر Checkout Only (بدون طباعة) */}
-            <Button
-              onClick={() => onCheckout(false)} // false = no print
-              className="bg-gray-600 text-white hover:bg-gray-700 text-lg px-8 py-6 font-bold flex-1"
-              disabled={isLoading || orderItemsLength === 0 || (orderType === "dine_in" && selectedPaymentCount === 0)}
-            >
-              {isLoading ? <Loading /> : t("CheckoutOnly")}
-            </Button>
-
-            {(orderType === "take_away") && (
-              <Button onClick={onSaveAsPending} className="bg-teal-600 text-white hover:bg-teal-700 text-lg px-8 py-6 flex-1">
-                {t("SaveasPending")}
-              </Button>
-            )}
-          </div>
+          </>
         )}
       </div>
+
+      {/* ===== Total Amount ===== */}
+      <div className="text-black rounded-xl px-4 py-3 mb-3 flex justify-between items-center shadow-sm">
+        <span className="text-black/80 text-sm font-medium">{t("AmountToPay")}</span>
+        <span className="text-black text-xl font-bold tracking-tight">
+          {amountToPay.toFixed(2)} <span className="text-sm font-normal opacity-80">{t("EGP")}</span>
+        </span>
+      </div>
+
+      {/* ===== Action Buttons ===== */}
+      {offerManagement.approvedOfferData ? (
+        <div className="space-y-2">
+          <div className="bg-teal-50 border border-teal-200 rounded-xl p-3 text-center">
+            <p className="font-semibold text-teal-800 text-sm">
+              🎁 {t("RewardItem")}: {offerManagement.approvedOfferData.product}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              onClick={async () => {
+                const success = await offerManagement.applyApprovedOffer();
+                if (success && onCheckout) onCheckout();
+              }}
+              className="bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold h-11 rounded-xl flex-1 transition-all"
+              disabled={isLoading}
+            >
+              {isLoading ? <Loading /> : <><CreditCard size={15} className="mr-1.5" />Apply Offer & Checkout</>}
+            </Button>
+            <Button
+              onClick={offerManagement.cancelApprovedOffer}
+              variant="outline"
+              className="border-red-300 text-red-500 hover:bg-red-50 h-11 rounded-xl px-4 text-sm"
+              disabled={isLoading}
+            >
+              {t("Cancel")}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          {/* Checkout & Print */}
+          <Button
+            onClick={() => onCheckout(true)}
+            disabled={isLoading || orderItemsLength === 0 || (orderType === "dine_in" && selectedPaymentCount === 0)}
+            className="flex flex-col items-center justify-center gap-1.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white font-bold rounded-xl transition-all shadow-sm h-16"
+          >
+            {isLoading ? <Loading /> : (
+              <>
+                <PrinterIcon size={18} strokeWidth={2.5} />
+                <span className="text-[10px] uppercase tracking-wide leading-tight text-center">{t("Checkout&Print")}</span>
+              </>
+            )}
+          </Button>
+
+          {/* Checkout Only */}
+          <Button
+            onClick={() => onCheckout(false)}
+            disabled={isLoading || orderItemsLength === 0 || (orderType === "dine_in" && selectedPaymentCount === 0)}
+            className="flex flex-col items-center justify-center gap-1.5 bg-gray-700 hover:bg-gray-800 disabled:opacity-40 text-white font-bold rounded-xl transition-all shadow-sm h-16"
+          >
+            {isLoading ? <Loading /> : (
+              <>
+                <CreditCard size={18} strokeWidth={2.5} />
+                <span className="text-[10px] uppercase tracking-wide leading-tight text-center">{t("CheckoutOnly")}</span>
+              </>
+            )}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

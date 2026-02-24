@@ -4,19 +4,18 @@ import { useTranslation } from "react-i18next";
 const SummaryRow = ({ label, value }) => {
   const { i18n } = useTranslation();
   const isArabic = i18n.language === "ar";
-// في SummaryRow.jsx
-const safeValue = Number(value || 0);
+  const safeValue = Number(value || 0);
+
   return (
     <div
-      className={`grid grid-cols-2 gap-10 py-2 ${
-        isArabic ? "text-right direction-rtl" : "text-left direction-ltr"
-      }`}
+      className={`flex justify-between items-center py-1 ${isArabic ? "flex-row-reverse" : ""
+        }`}
       dir={isArabic ? "rtl" : "ltr"}
     >
-      <p>{label}</p>
-      <p>
-        {value.toFixed(2)} {isArabic ? "ج.م" : "EGP"}
-      </p>
+      <span className="text-xs text-gray-500">{label}</span>
+      <span className="text-xs font-semibold text-gray-700">
+        {safeValue.toFixed(2)} {isArabic ? "ج.م" : "EGP"}
+      </span>
     </div>
   );
 };

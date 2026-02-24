@@ -95,7 +95,8 @@ const ItemRow = ({
 
 
   return (
-    <tr className={`border-b last:border-b-0 hover:bg-gray-50 ${item.type === "addon" ? "bg-blue-50" : ""} ${selectedPaymentItems.includes(item.temp_id) ? "bg-bg-secondary" : ""}`}>
+    <tr className={`border-b border-gray-50 last:border-b-0 hover:bg-gray-50/70 transition-colors duration-100 ${item.type === "addon" ? "bg-blue-50/50" : ""
+      } ${selectedPaymentItems.includes(item.temp_id) ? "bg-teal-50" : ""}`}>
       {orderType === "dine_in" && (
         <td className="py-3 px-4 text-center align-top">
           <input
@@ -108,14 +109,14 @@ const ItemRow = ({
       )}
 
       {/* Product Name + Variations + Notes */}
-      <td className="py-3 px-4 text-left align-top">
+      <td className="py-2 px-3 text-left align-middle">
         <ProductDetailModalWrapper
           product={item}
           updateOrderItems={updateOrderItems}
           orderItems={orderItems}
         >
-          <div className="flex flex-col gap-1">
-            <span className="text-gray-800 font-medium hover:underline hover:text-purple-600 cursor-pointer transition-colors">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-gray-800 text-xs font-medium hover:text-purple-600 hover:underline cursor-pointer transition-colors leading-tight">
               {item.name}
             </span>
 
@@ -133,41 +134,33 @@ const ItemRow = ({
 
             {/* Notes */}
             {item.notes && item.notes.trim() !== "" && (
-              <div className="mt-2 p-2 bg-teal-50 border border-teal-200 rounded-lg text-xs italic text-teal-700 flex items-start gap-1.5">
-                <FileText size={14} className="mt-0.5 flex-shrink-0" />
-                <span>
-                  <strong className="font-semibold">Note:</strong> {item.notes}
-                </span>
+              <div className="mt-1 px-1.5 py-1 bg-amber-50 border border-amber-200 rounded text-[10px] italic text-amber-700 flex items-start gap-1">
+                <FileText size={10} className="mt-0.5 flex-shrink-0" />
+                <span>{item.notes}</span>
               </div>
             )}
           </div>
         </ProductDetailModalWrapper>
       </td>
 
-      {/* Price per Unit - الآن مظبوط في Dine-in و Takeaway */}
-      <td className="py-3 px-4 text-center align-top">
+      {/* Price per Unit */}
+      <td className="py-2 px-3 text-center align-middle">
         <div>
-          <span className={hasDiscount ? "text-bg-secondary font-semibold" : "font-medium"}>
+          <span className={`text-xs ${hasDiscount ? "text-teal-600 font-semibold" : "font-medium text-gray-700"}`}>
             {safePrice.toFixed(2)}
           </span>
           {hasDiscount && (
             <div>
-              <span className="text-xs text-gray-500 line-through">
+              <span className="text-[10px] text-gray-400 line-through">
                 {safeOriginalPrice}
               </span>
-            </div>
-          )}
-          {item.tax_obj && (
-            <div className="text-xs text-blue-600 mt-1">
-              {item.taxes === "excluded" ? "Tax Excluded" : "Tax Included"}
-              {item.tax_val > 0 && ` (+${item.tax_val.toFixed(2)})`}
             </div>
           )}
         </div>
       </td>
 
       {/* Quantity */}
-      <td className="py-3 px-4 text-center align-top">
+      <td className="py-2 px-2 text-center align-middle">
         {item.weight_status === 1 ? (
           <div className="flex items-center justify-center gap-1">
 
@@ -181,7 +174,7 @@ const ItemRow = ({
                 );
                 updateOrderItems(updatedItems);
               }}
-              className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 transition-colors"
+              className="w-6 h-6 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded text-gray-600 font-bold text-sm transition-colors"
             >
               −
             </button>
@@ -192,11 +185,7 @@ const ItemRow = ({
               value={item.quantity}
               onChange={(e) => {
                 let val = e.target.value;
-
-                // 👇 يسمح بالأرقام + النقطة فقط (بدون تحديد عدد الخانات)
                 if (!/^\d*\.?\d*$/.test(val)) return;
-
-                // لو فاضي أو نقطة لوحدها، نسمح به مؤقتاً
                 if (val === "" || val === ".") {
                   const updatedItems = orderItems.map((i) =>
                     i.temp_id === item.temp_id ? { ...i, quantity: val } : i
@@ -204,22 +193,14 @@ const ItemRow = ({
                   updateOrderItems(updatedItems);
                   return;
                 }
-
-                // لو الرقم صح، نحدثه مباشرة بدون قيود
                 const updatedItems = orderItems.map((i) =>
                   i.temp_id === item.temp_id ? { ...i, quantity: val } : i
                 );
                 updateOrderItems(updatedItems);
               }}
               onBlur={() => {
-                // عند ترك الحقل → نتأكد من صحة الرقم
                 let num = parseFloat(item.quantity);
-
-                // لو مش رقم صحيح أو أقل من 0.25، نحطه 0.25
-                if (isNaN(num) || num < 0.25) {
-                  num = 0.25;
-                }
-
+                if (isNaN(num) || num < 0.25) num = 0.25;
                 const updatedItems = orderItems.map((i) =>
                   i.temp_id === item.temp_id
                     ? { ...i, quantity: num.toFixed(2) }
@@ -227,17 +208,12 @@ const ItemRow = ({
                 );
                 updateOrderItems(updatedItems);
               }}
-              onKeyDown={(e) => {
-                // لو ضغط Enter، نعمل blur عشان يتنسق الرقم
-                if (e.key === 'Enter') {
-                  e.target.blur();
-                }
-              }}
-              className="w-20 text-center font-medium border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-bg-primary"
+              onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+              className="w-14 text-center text-xs font-medium border border-gray-200 rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-purple-400"
               placeholder="0.00"
             />
 
-            <span className="text-xs text-gray-600">kg</span>
+            <span className="text-[10px] text-gray-500">kg</span>
 
             {/* Plus */}
             <button
@@ -249,7 +225,7 @@ const ItemRow = ({
                 );
                 updateOrderItems(updatedItems);
               }}
-              className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 transition-colors"
+              className="w-6 h-6 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded text-gray-600 font-bold text-sm transition-colors"
             >
               +
             </button>
@@ -259,20 +235,23 @@ const ItemRow = ({
             <button
               onClick={() => handleDecrease(item.temp_id)}
               disabled={!allowQuantityEdit}
-              className={`px-2 py-1 rounded ${allowQuantityEdit ? "bg-gray-200 hover:bg-gray-300" : "bg-gray-100 cursor-not-allowed"}`}
+              className={`w-6 h-6 flex items-center justify-center rounded text-sm font-bold transition-colors ${allowQuantityEdit
+                  ? "bg-gray-100 hover:bg-gray-200 text-gray-600"
+                  : "bg-gray-50 cursor-not-allowed text-gray-300"
+                }`}
             >
               −
             </button>
-            <span className="min-w-[24px] text-center font-medium">{item.count}</span>
+            <span className="min-w-[22px] text-center text-xs font-semibold text-gray-700">{item.count}</span>
             <button
               onClick={() => handleIncrease(item.temp_id)}
-              className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
+              className="w-6 h-6 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded text-gray-600 font-bold text-sm transition-colors"
             >
               +
             </button>
           </div>
         ) : (
-          <span className="min-w-[24px] text-center font-medium">1 (ثابت)</span>
+          <span className="min-w-[22px] text-center text-xs font-medium text-gray-500">1 (ثابت)</span>
         )}
       </td>
 
@@ -317,26 +296,27 @@ const ItemRow = ({
         </td>
       )}
 
-      {/* Total - الآن مظبوط تمامًا في Dine-in */}
-      <td className="py-3 px-4 text-center align-top">
-        <span className="font-semibold">
+      {/* Total */}
+      <td className="py-2 px-3 text-center align-middle">
+        <span className="text-xs font-semibold text-gray-800">
           {totalPrice}
         </span>
         {hasDiscount && totalOriginalPrice && (
-          <div className="text-xs text-gray-500 line-through">
+          <div className="text-[10px] text-gray-400 line-through">
             {totalOriginalPrice}
           </div>
         )}
       </td>
 
       {/* Delete Item */}
-      <td className="py-3 px-4 text-center align-top">
+      <td className="py-2 px-3 text-center align-middle">
         <button
           onClick={() => orderType === "dine_in" ? handleVoidItem(item.temp_id) : handleRemoveFrontOnly(item.temp_id)}
-          className={`p-2 rounded-full text-purple-500 hover:bg-purple-100 transition-colors ${isItemLoading && orderType === "dine_in" ? "opacity-50 cursor-not-allowed" : ""}`}
+          className={`w-7 h-7 flex items-center justify-center rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-all ${isItemLoading && orderType === "dine_in" ? "opacity-40 cursor-not-allowed" : ""
+            }`}
           disabled={isItemLoading && orderType === "dine_in"}
         >
-          <Trash2 size={20} />
+          <Trash2 size={15} />
         </button>
       </td>
     </tr>

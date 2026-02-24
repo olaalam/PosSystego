@@ -20,12 +20,13 @@ export default function OrderTable({
   t,
 }) {
   return (
-    <div className="bg-white shadow-md rounded-lg">
-      <table className="w-full">
-        <thead className="bg-gray-100 text-xs sm:text-sm sticky top-0 z-10">
-          <tr>
+    <div className="bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm">
+      <table className="w-full text-sm">
+        {/* Table Header */}
+        <thead>
+          <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
             {orderType === "dine_in" && (
-              <th className="py-3 px-4 text-center text-gray-600 font-semibold">
+              <th className="py-2.5 px-3 text-center">
                 <input
                   type="checkbox"
                   checked={
@@ -33,44 +34,51 @@ export default function OrderTable({
                     selectedItems.length === orderItems.length
                   }
                   onChange={onSelectAll}
+                  className="w-3.5 h-3.5 accent-purple-600 rounded cursor-pointer"
                 />
               </th>
             )}
-            <th className="py-3 px-4 text-center text-gray-600 font-semibold">
+            <th className="py-2.5 px-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
               {t("Item")}
             </th>
-            <th className="py-3 px-4 text-center text-gray-600 font-semibold">
+            <th className="py-2.5 px-3 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
               {t("Price")}
             </th>
-            <th className="py-3 px-4 text-center text-gray-600 font-semibold">
+            <th className="py-2.5 px-3 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
               {t("Quantity")}
             </th>
             {orderType === "dine_in" && (
-              <th className="py-3 px-4 text-center text-gray-600 font-semibold">
+              <th className="py-2.5 px-3 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
                 {t("Preparation")}
               </th>
             )}
             {orderType === "dine_in" && (
-              <th className="py-3 px-4 text-center text-gray-600 font-semibold">
+              <th className="py-2.5 px-3 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
                 {t("Pay")}
               </th>
             )}
-            <th className="py-3 px-4 text-right text-gray-600 font-semibold">
+            <th className="py-2.5 px-3 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
               {t("Total")}
             </th>
-            <th className="py-3 px-4 text-right text-gray-600 font-semibold">
+            <th className="py-2.5 px-3 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
               {t("Void")}
             </th>
           </tr>
         </thead>
-        <tbody>
+
+        <tbody className="divide-y divide-gray-50">
           {orderItems.length === 0 ? (
             <tr>
               <td
-                colSpan={orderType === "dine_in" ? 8 : 6}
-                className="text-center py-4 text-gray-500"
+                colSpan={orderType === "dine_in" ? 8 : 5}
+                className="text-center py-10 text-gray-400"
               >
-                <p>{t("NoItemsFound")}</p>
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                    <span className="text-2xl">🛒</span>
+                  </div>
+                  <p className="text-sm font-medium text-gray-400">{t("NoItemsFound")}</p>
+                </div>
               </td>
             </tr>
           ) : (

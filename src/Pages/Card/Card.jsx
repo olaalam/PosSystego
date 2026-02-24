@@ -44,7 +44,7 @@ export default function Card({
   const [selectedPaymentItems, setSelectedPaymentItems] = useState([]);
   const [bulkStatus, setBulkStatus] = useState("");
   const [itemLoadingStates, setItemLoadingStates] = useState({});
-const [shouldPrintReceipt, setShouldPrintReceipt] = useState(true); // ← جديد
+  const [shouldPrintReceipt, setShouldPrintReceipt] = useState(true); // ← جديد
   // Void Modal States
   const [showVoidModal, setShowVoidModal] = useState(false);
   const [voidItemId, setVoidItemId] = useState(null);
@@ -84,11 +84,11 @@ const [shouldPrintReceipt, setShouldPrintReceipt] = useState(true); // ← جد�
     itemLoadingStates,
     setItemLoadingStates,
   });
-const allItemsDone =
-  orderType === "dine_in" &&
-  orderItems.length > 0 &&
-  calculations.doneItems.length === orderItems.length;
-const printRef = useRef();
+  const allItemsDone =
+    orderType === "dine_in" &&
+    orderItems.length > 0 &&
+    calculations.doneItems.length === orderItems.length;
+  const printRef = useRef();
   // Add temp_id to items if missing
   useEffect(() => {
     const needsUpdate = orderItems.some((item) => !item.temp_id);
@@ -111,55 +111,55 @@ const printRef = useRef();
     toast.success(t("Allitemsclearedfromtheorder"));
   };
   // Clear cart function
-const clearPaidItemsOnly = () => {
-  // نحذف بس العناصر اللي تم اختيارها للدفع (selectedPaymentItems)
-  const paidItemIds = new Set(selectedPaymentItems);
+  const clearPaidItemsOnly = () => {
+    // نحذف بس العناصر اللي تم اختيارها للدفع (selectedPaymentItems)
+    const paidItemIds = new Set(selectedPaymentItems);
 
-  const remainingItems = orderItems.filter(
-    (item) => !paidItemIds.has(item.temp_id)
-  );
+    const remainingItems = orderItems.filter(
+      (item) => !paidItemIds.has(item.temp_id)
+    );
 
-  // نعمل تحديث للسلة بالعناصر الباقية فقط
-  updateOrderItems(remainingItems);
+    // نعمل تحديث للسلة بالعناصر الباقية فقط
+    updateOrderItems(remainingItems);
 
-  // نحدث sessionStorage بالباقي
-  if (remainingItems.length > 0) {
-    sessionStorage.setItem("cart", JSON.stringify(remainingItems));
-  } else {
-    sessionStorage.removeItem("cart");
-  }
+    // نحدث sessionStorage بالباقي
+    if (remainingItems.length > 0) {
+      sessionStorage.setItem("cart", JSON.stringify(remainingItems));
+    } else {
+      sessionStorage.removeItem("cart");
+    }
 
-  // نرست التحديدات
-  setSelectedItems([]);
-  setSelectedPaymentItems([]);
+    // نرست التحديدات
+    setSelectedItems([]);
+    setSelectedPaymentItems([]);
 
-  toast.success(
-    remainingItems.length > 0
-      ? t("PaiditemshavebeenremovedRemainingitemsstillintheorder")
-      : t("Allselecteditemshavebeenpaidandremoved")
-  );
-};
+    toast.success(
+      remainingItems.length > 0
+        ? t("PaiditemshavebeenremovedRemainingitemsstillintheorder")
+        : t("Allselecteditemshavebeenpaidandremoved")
+    );
+  };
 
   // Handlers
-const handleCheckOut = (print = true) => {
-  setShouldPrintReceipt(print);   // نحفظ هل نطبع أم لا
-  setShowModal(true);             // نفتح المودال
-};
+  const handleCheckOut = (print = true) => {
+    setShouldPrintReceipt(print);   // نحفظ هل نطبع أم لا
+    setShowModal(true);             // نفتح المودال
+  };
 
-const handleClearAllItems = () => {
-  if (orderItems.length === 0) {
-    toast.warning(t("Noitemstoclear"));
-    return;
-  }
+  const handleClearAllItems = () => {
+    if (orderItems.length === 0) {
+      toast.warning(t("Noitemstoclear"));
+      return;
+    }
 
-  if (orderType === "dine_in" && hasAnyItemInPreparationOrLater()) {
-    // فيه عناصر بدأت → يطلب مدير
-    setShowClearAllManagerModal(true);
-  } else {
-    // كله لسة Pending → يمسح عادي
-    setShowClearAllConfirm(true);
-  }
-};
+    if (orderType === "dine_in" && hasAnyItemInPreparationOrLater()) {
+      // فيه عناصر بدأت → يطلب مدير
+      setShowClearAllManagerModal(true);
+    } else {
+      // كله لسة Pending → يمسح عادي
+      setShowClearAllConfirm(true);
+    }
+  };
 
   const confirmClearAllWithManager = async () => {
     if (!clearAllManagerId || !clearAllManagerPassword) {
@@ -208,12 +208,12 @@ const handleClearAllItems = () => {
       setItemLoadingStates((prev) => ({ ...prev, clearAll: false }));
     }
   };
-const handlePrint = () => {
-  if (!printRef.current) return;
+  const handlePrint = () => {
+    if (!printRef.current) return;
 
-  const printContents = printRef.current.innerHTML;
-  const printWindow = window.open("", "_blank", "width=800,height=600");
-  printWindow.document.write(`
+    const printContents = printRef.current.innerHTML;
+    const printWindow = window.open("", "_blank", "width=800,height=600");
+    printWindow.document.write(`
     <html>
       <head>
         <title>Print Order</title>
@@ -227,25 +227,24 @@ const handlePrint = () => {
       <body>${printContents}</body>
     </html>
   `);
-  printWindow.document.close();
-  printWindow.focus();
-  printWindow.print();
-  printWindow.close();
-};
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
+  };
 
-const hasAnyItemInPreparationOrLater = () => {
-  return orderItems.some(item => {
-    const status = item.preparation_status || "Pending";
-    return ["preparing", "pick_up", "done"].includes(status);
-  });
-};
+  const hasAnyItemInPreparationOrLater = () => {
+    return orderItems.some(item => {
+      const status = item.preparation_status || "Pending";
+      return ["preparing", "pick_up", "done"].includes(status);
+    });
+  };
 
   return (
     <div
-    ref={printRef} 
-      className={`flex flex-col h-full ${
-        isArabic ? "text-right direction-rtl" : "text-left direction-ltr"
-      }`}
+      ref={printRef}
+      className={`flex flex-col h-full ${isArabic ? "text-right direction-rtl" : "text-left direction-ltr"
+        }`}
       dir={isArabic ? "rtl" : "ltr"}
     >
       {/* Header Section */}
@@ -255,6 +254,7 @@ const hasAnyItemInPreparationOrLater = () => {
         handleClearAllItems={handleClearAllItems}
         handleViewOrders={() => navigate("/orders")}
         handleViewPendingOrders={() => navigate("/pending-orders")}
+        onSaveAsPending={() => orderActions.handleSaveAsPending(calculations.amountToPay, calculations.order_tax)}
         onShowOfferModal={() => offerManagement.setShowOfferModal(true)}
         onShowDealModal={() => dealManagement.setShowDealModal(true)}
         isLoading={apiLoading}
@@ -314,21 +314,21 @@ const hasAnyItemInPreparationOrLater = () => {
           onIncrease={orderActions.handleIncrease}
           onDecrease={orderActions.handleDecrease}
           onUpdateStatus={orderActions.handleUpdatePreparationStatus}
-onVoidItem={(itemId) => {
-  const item = orderItems.find(i => i.temp_id === itemId);
-  const status = item?.preparation_status || "Pending";
+          onVoidItem={(itemId) => {
+            const item = orderItems.find(i => i.temp_id === itemId);
+            const status = item?.preparation_status || "Pending";
 
-  if (orderType === "dine_in" && ["preparing", "pick_up", "done"].includes(status)) {
-    // بدأ التحضير → يطلب مدير
-    setVoidItemId(itemId);
-    setShowVoidModal(true);
-  } else {
-    // لسة Pending أو Waiting → يمسح فورًا بدون باسوورد
-    orderActions.handleRemoveFrontOnly(itemId); // أو أي دالة بتمسح من الواجهة فقط
-    // أو لو عايزة تعمل void للـ backend برضو بدون باسوورد:
-    // orderActions.confirmVoidItem(itemId, null, null, () => {});
-  }
-}}
+            if (orderType === "dine_in" && ["preparing", "pick_up", "done"].includes(status)) {
+              // بدأ التحضير → يطلب مدير
+              setVoidItemId(itemId);
+              setShowVoidModal(true);
+            } else {
+              // لسة Pending أو Waiting → يمسح فورًا بدون باسوورد
+              orderActions.handleRemoveFrontOnly(itemId); // أو أي دالة بتمسح من الواجهة فقط
+              // أو لو عايزة تعمل void للـ backend برضو بدون باسوورد:
+              // orderActions.confirmVoidItem(itemId, null, null, () => {});
+            }
+          }}
           onRemoveFrontOnly={orderActions.handleRemoveFrontOnly}
           allowQuantityEdit={allowQuantityEdit}
           itemLoadingStates={itemLoadingStates}
@@ -354,28 +354,28 @@ onVoidItem={(itemId) => {
       </div>
 
       {/* Order Summary */}
-<OrderSummary
-  orderType={orderType}
-  subTotal={calculations.subTotal}
-  order_tax={calculations.order_tax}
-  totalOtherCharge={calculations.totalOtherCharge}
-  serviceFeeData={serviceFeeData}
-  taxDetails={calculations.taxDetails}
-  totalAmountDisplay={calculations.totalAmountDisplay}
-  amountToPay={calculations.amountToPay}
-  selectedPaymentCount={selectedPaymentItems.length}
-  onCheckout={handleCheckOut}
-  
-  onSaveAsPending={() => orderActions.handleSaveAsPending(calculations.amountToPay, calculations.order_tax)}
-  offerManagement={offerManagement}   // ده المهم
-  isLoading={apiLoading}
-  orderItemsLength={orderItems.length}
-  allItemsDone={allItemsDone}
-  t={t}
-  onPrint={handlePrint}
-  orderItems={orderItems}
-  tableId={tableId}
-/>
+      <OrderSummary
+        orderType={orderType}
+        subTotal={calculations.subTotal}
+        order_tax={calculations.order_tax}
+        totalOtherCharge={calculations.totalOtherCharge}
+        serviceFeeData={serviceFeeData}
+        taxDetails={calculations.taxDetails}
+        totalAmountDisplay={calculations.totalAmountDisplay}
+        amountToPay={calculations.amountToPay}
+        selectedPaymentCount={selectedPaymentItems.length}
+        onCheckout={handleCheckOut}
+
+        onSaveAsPending={() => orderActions.handleSaveAsPending(calculations.amountToPay, calculations.order_tax)}
+        offerManagement={offerManagement}   // ده المهم
+        isLoading={apiLoading}
+        orderItemsLength={orderItems.length}
+        allItemsDone={allItemsDone}
+        t={t}
+        onPrint={handlePrint}
+        orderItems={orderItems}
+        tableId={tableId}
+      />
 
       {/* Modals */}
       <VoidItemModal
@@ -401,20 +401,20 @@ onVoidItem={(itemId) => {
         isLoading={apiLoading}
       />
 
-<ClearAllConfirmModal
-  open={showClearAllConfirm}
-  onOpenChange={setShowClearAllConfirm}
-  onConfirm={() => {
-    updateOrderItems([]);                    // نمسح الكل من السلة
-    sessionStorage.removeItem("cart");       // نمسح من الـ session
-    setSelectedItems([]);                    // نرست التحديد
-    setSelectedPaymentItems([]);             // نرست تحديد الدفع
-    toast.success(t("Allitemsclearedfromtheorder"));
-    setShowClearAllConfirm(false);
-  }}
-  itemCount={orderItems.length}
-  t={t}
-/>
+      <ClearAllConfirmModal
+        open={showClearAllConfirm}
+        onOpenChange={setShowClearAllConfirm}
+        onConfirm={() => {
+          updateOrderItems([]);                    // نمسح الكل من السلة
+          sessionStorage.removeItem("cart");       // نمسح من الـ session
+          setSelectedItems([]);                    // نرست التحديد
+          setSelectedPaymentItems([]);             // نرست تحديد الدفع
+          toast.success(t("Allitemsclearedfromtheorder"));
+          setShowClearAllConfirm(false);
+        }}
+        itemCount={orderItems.length}
+        t={t}
+      />
 
       <ClearAllManagerModal
         open={showClearAllManagerModal}
@@ -482,36 +482,36 @@ onVoidItem={(itemId) => {
       )}
 
       <div style={{ display: "none" }}>
-  <div ref={printRef} className="print-area">
-    <h2 style={{ textAlign: "center" }}>Order Summary</h2>
-    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-      <thead>
-        <tr>
-          <th style={{ border: "1px solid #000", padding: "8px" }}>Product</th>
-          <th style={{ border: "1px solid #000", padding: "8px" }}>Qty</th>
-          <th style={{ border: "1px solid #000", padding: "8px" }}>Price</th>
-          <th style={{ border: "1px solid #000", padding: "8px" }}>Total</th>
-        </tr>
-      </thead>
-      <tbody>
-        {orderItems.map((item) => (
-          <tr key={item.temp_id}>
-            <td style={{ border: "1px solid #000", padding: "8px" }}>{item.name}</td>
-            <td style={{ border: "1px solid #000", padding: "8px" }}>{item.quantity}</td>
-            <td style={{ border: "1px solid #000", padding: "8px" }}>{item.price.toFixed(2)}</td>
-            <td style={{ border: "1px solid #000", padding: "8px" }}>{(item.price * item.quantity).toFixed(2)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+        <div ref={printRef} className="print-area">
+          <h2 style={{ textAlign: "center" }}>Order Summary</h2>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th style={{ border: "1px solid #000", padding: "8px" }}>Product</th>
+                <th style={{ border: "1px solid #000", padding: "8px" }}>Qty</th>
+                <th style={{ border: "1px solid #000", padding: "8px" }}>Price</th>
+                <th style={{ border: "1px solid #000", padding: "8px" }}>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orderItems.map((item) => (
+                <tr key={item.temp_id}>
+                  <td style={{ border: "1px solid #000", padding: "8px" }}>{item.name}</td>
+                  <td style={{ border: "1px solid #000", padding: "8px" }}>{item.quantity}</td>
+                  <td style={{ border: "1px solid #000", padding: "8px" }}>{item.price.toFixed(2)}</td>
+                  <td style={{ border: "1px solid #000", padding: "8px" }}>{(item.price * item.quantity).toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
 
-    <div style={{ marginTop: "10px", textAlign: "right" }}>
-      <p>Tax: {calculations.order_tax.toFixed(2)}</p>
-      <p>Service Fee: {calculations.totalOtherCharge.toFixed(2)}</p>
-      <p><strong>Total: {calculations.amountToPay.toFixed(2)}</strong></p>
-    </div>
-  </div>
-</div>
+          <div style={{ marginTop: "10px", textAlign: "right" }}>
+            <p>Tax: {calculations.order_tax.toFixed(2)}</p>
+            <p>Service Fee: {calculations.totalOtherCharge.toFixed(2)}</p>
+            <p><strong>Total: {calculations.amountToPay.toFixed(2)}</strong></p>
+          </div>
+        </div>
+      </div>
 
     </div>
   );
