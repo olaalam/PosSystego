@@ -27,7 +27,7 @@ export function usePost() {
     } catch (err) {
       const message =
         err?.response?.data?.faield ||
-        err.response?.data?.message ||
+        err.response?.error?.message ||
         "error occurred ";
 
       setError(message);

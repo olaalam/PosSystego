@@ -71,14 +71,14 @@ const CheckOut = ({
   const [selectedTaxId, setSelectedTaxId] = useState(null);
   const [freeDiscount, setFreeDiscount] = useState("");
 
-// === QZ Tray Connection ===
+  // === QZ Tray Connection ===
   useEffect(() => {
     if (!shouldPrintReceipt) {
-    // لو مش هنطبع → متعملش اتصال بـ QZ خالص
-    return;
-  }
+      // لو مش هنطبع → متعملش اتصال بـ QZ خالص
+      return;
+    }
     // 1. جلب التوكين (تأكد من اسم المفتاح الصحيح سواء token أو access_token)
-    const token = sessionStorage.getItem("token"); 
+    const token = sessionStorage.getItem("token");
 
     // إعداد الهيدر للإرسال
     const authHeaders = {
@@ -95,7 +95,7 @@ const CheckOut = ({
           if (!response.ok) {
             // إذا كان الخطأ 401، فهذا يعني أن التوكين غير صحيح أو منتهي
             if (response.status === 401) {
-                throw new Error("401 Unauthorized: Please check login status.");
+              throw new Error("401 Unauthorized: Please check login status.");
             }
             throw new Error(`Certificate Error: ${response.status}`);
           }
@@ -122,7 +122,7 @@ const CheckOut = ({
           .then((response) => {
             if (!response.ok) {
               if (response.status === 401) {
-                  throw new Error("401 Unauthorized: Signature rejected.");
+                throw new Error("401 Unauthorized: Signature rejected.");
               }
               throw new Error(`Signature Error: ${response.status}`);
             }
@@ -155,7 +155,7 @@ const CheckOut = ({
         qz.websocket.disconnect();
       }
     };
-  }, [baseUrl, t,shouldPrintReceipt]); // تمت إزالة token من الاعتماديات لتجنب إعادة الاتصال المتكررة إذا لم يكن ضرورياً
+  }, [baseUrl, t, shouldPrintReceipt]); // تمت إزالة token من الاعتماديات لتجنب إعادة الاتصال المتكررة إذا لم يكن ضرورياً
 
   const { postData, loading } = usePost();
 
@@ -166,22 +166,22 @@ const CheckOut = ({
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [customerSearchQuery, setCustomerSearchQuery] = useState("");
 
-const {
-  data: dueUsersData,
-  loading: customerSearchLoading,
-  refetch: refetchDueUsers,
-} = useGet(`api/admin/pos-home/selections`);
+  const {
+    data: dueUsersData,
+    loading: customerSearchLoading,
+    refetch: refetchDueUsers,
+  } = useGet(`api/admin/pos-home/selections`);
 
-const searchResults = useMemo(() => {
-  // التغيير الوحيد: dueCustomers بدل users
-  const customers = dueUsersData?.data?.dueCustomers || [];
+  const searchResults = useMemo(() => {
+    // التغيير الوحيد: dueCustomers بدل users
+    const customers = dueUsersData?.data?.dueCustomers || [];
 
-  return customers.filter((c) =>
-    c.name?.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
-    c.phone_number?.includes(customerSearchQuery)
-    // لو في phone_2 ممكن تضيفه هنا لو موجود في الـ API
-  );
-}, [dueUsersData, customerSearchQuery]);
+    return customers.filter((c) =>
+      c.name?.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
+      c.phone_number?.includes(customerSearchQuery)
+      // لو في phone_2 ممكن تضيفه هنا لو موجود في الـ API
+    );
+  }, [dueUsersData, customerSearchQuery]);
 
   const { selectedDiscountAmount, finalSelectedDiscountId } = useMemo(() => {
     const discountList = discountListData?.data?.discounts || [];
@@ -230,20 +230,19 @@ const searchResults = useMemo(() => {
   const discountedAmount = useMemo(() => {
     let totalDiscountValue = 0;
 
-    // تطبيق الخصم بالرمز
+    // 1. لو فيه كود خصم مطبق (appliedDiscount هنا شايلة نسبة)
     if (appliedDiscount > 0) {
       totalDiscountValue = amountToPay * (appliedDiscount / 100);
     }
-    // تطبيق الخصم المختار من القائمة
+    // 2. لو مفيش كود، بنشوف لو مختار خصم من القائمة
     else if (selectedDiscountAmount > 0) {
       totalDiscountValue = selectedDiscountAmount;
     }
 
-    // خصم الـ free_discount
-    const afterPercentageDiscount = amountToPay - totalDiscountValue;
+    const afterDiscount = amountToPay - totalDiscountValue;
     const freeDiscountValue = parseFloat(freeDiscount) || 0;
 
-    return Math.max(0, afterPercentageDiscount - freeDiscountValue);
+    return Math.max(0, afterDiscount - freeDiscountValue);
   }, [amountToPay, appliedDiscount, selectedDiscountAmount, freeDiscount]);
 
   const requiredTotal = useMemo(() => {
@@ -378,22 +377,46 @@ const searchResults = useMemo(() => {
     setDiscountError(null);
 
     try {
-      const response = await postData("api/admin/coupon", {
-        code: discountCode,
+      // إرسال الكود والإجمالي للـ API الجديد
+      const response = await postData("api/admin/pos/apply-coupon", {
+        coupon_code: discountCode,
+        grand_total: amountToPay,
       });
+
       if (response.success) {
-        setAppliedDiscount(response.discount);
-        toast.success(t("DiscountApplied", { discount: response.discount }));
-      } 
-      else {
-        setAppliedDiscount(0);
-        setDiscountError("Invalid or Off discount code.");
-        toast.error(t("InvalidOrOffDiscountCode"));
+        // الوصول للبيانات بناءً على الصورة (response.data.coupon)
+        const couponData = response.data?.coupon;
+
+        if (couponData) {
+          let discountValue = 0;
+          // لو النوع percentage نطبق النسبة، ولو ثابت نطبق القيمة مباشرة
+          if (couponData.type === "percentage") {
+            discountValue = couponData.amount; // هنا بنخزن النسبة (مثلاً 50)
+          } else {
+            // لو كان قيمة ثابتة، هنحوله لنسبة عشان الـ UI عندك شغال بالنسبة في الـ appliedDiscount
+            // أو تعدلي الحسبة في discountedAmount
+            discountValue = (couponData.amount / amountToPay) * 100;
+          }
+
+          setAppliedDiscount(discountValue);
+          toast.success(t("DiscountAppliedSuccess", { appliedDiscount: couponData.amount }));
+        }
+      } else {
+        // عرض الرسالة من الباك إند في حالة success: false
+        const msg = response.error?.message || t("InvalidOrOffDiscountCode");
+        setDiscountError(msg);
+        toast.error(msg);
       }
     } catch (e) {
+      // جلب رسالة الخطأ المخصصة "Coupon not found" من الـ catch
+      // الباك إند باعتها في e.response.data.error.message
+      const backendError = e.response?.data?.error?.message
+        || e.response?.data?.message
+        || e.message;
+
       setAppliedDiscount(0);
-      setDiscountError(e.message || "Failed to validate discount code.");
-      toast.error(e.message || t("FailedToValidateDiscountCode"));
+      setDiscountError(backendError);
+      toast.error(backendError);
     } finally {
       setIsCheckingDiscount(false);
     }
@@ -431,11 +454,11 @@ const searchResults = useMemo(() => {
       prev.map((split) =>
         split._id === _id
           ? {
-              ...split,
-              account_id: accountId,
-              checkout: "",
-              transition_id: "",
-            }
+            ...split,
+            account_id: accountId,
+            checkout: "",
+            transition_id: "",
+          }
           : split
       )
     );
@@ -493,130 +516,131 @@ const searchResults = useMemo(() => {
     return acc?.name?.toLowerCase().includes("visa");
   };
 
-const proceedWithOrderSubmission = async (
-  Due = 0,
-  customer_id = undefined,
-  dueModuleValue = 0,
-  forcedPassword = null
-) => {
-  const freeDiscountValue = parseFloat(freeDiscount) || 0;
+  const proceedWithOrderSubmission = async (
+    Due = 0,
+    customer_id = undefined,
+    dueModuleValue = 0,
+    forcedPassword = null
+  ) => {
+    const freeDiscountValue = parseFloat(freeDiscount) || 0;
 
-  // طلب كلمة سر للخصم المجاني
-  if (
-    freeDiscountValue > 0 &&
-    !forcedPassword &&
-    !pendingFreeDiscountPassword
-  ) {
-    setPasswordModalOpen(true);
-    return;
-  }
+    // طلب كلمة سر للخصم المجاني
+    if (
+      freeDiscountValue > 0 &&
+      !forcedPassword &&
+      !pendingFreeDiscountPassword
+    ) {
+      setPasswordModalOpen(true);
+      return;
+    }
 
-  const safeOrderItems = Array.isArray(orderItems) ? orderItems : [];
-  const hasDealItems = safeOrderItems.some((item) => item.is_deal);
-  const endpoint = getOrderEndpoint(null, safeOrderItems, hasDealItems);
-  const financialsPayload = buildFinancialsPayload(paymentSplits, financialAccounts);
+    const safeOrderItems = Array.isArray(orderItems) ? orderItems : [];
+    const hasDealItems = safeOrderItems.some((item) => item.is_deal);
+    const endpoint = getOrderEndpoint(null, safeOrderItems, hasDealItems);
+    const financialsPayload = buildFinancialsPayload(paymentSplits, financialAccounts);
 
-  const moduleId = sessionStorage.getItem("module_id");
+    const moduleId = sessionStorage.getItem("module_id");
 
-  let payload;
-  if (hasDealItems) {
-    payload = buildDealPayload(safeOrderItems, financialsPayload);
-  } else {
-    payload = buildOrderPayload({
-      orderItems: safeOrderItems,
-      amountToPay: requiredTotal,
-      order_tax,
-      totalDiscount: appliedDiscount > 0
-        ? amountToPay * (appliedDiscount / 100)
-        : totalDiscount,
-      notes: orderNotes.trim() || "No special instructions",
-      financialsPayload,
-      cashierId,
-      Due,
-      customer_id: customer_id || selectedCustomer?._id,
-      selectedTaxId: selectedTaxId,
-      discount_id: selectedDiscountId,
-      module_id: moduleId,
-      free_discount: freeDiscountValue > 0 ? freeDiscountValue : undefined,
-      due_module: dueModuleValue > 0 ? dueModuleValue.toFixed(2) : undefined,
-      selectedTaxAmount: selectedTaxAmount,
-      password: forcedPassword || pendingFreeDiscountPassword || undefined,
-    });
-  }
+    let payload;
+    if (hasDealItems) {
+      payload = buildDealPayload(safeOrderItems, financialsPayload);
+    } else {
+      payload = buildOrderPayload({
+        orderItems: safeOrderItems,
+        amountToPay: requiredTotal,
+        order_tax,
+        totalDiscount: appliedDiscount > 0
+          ? amountToPay * (appliedDiscount / 100)
+          : totalDiscount,
+        notes: orderNotes.trim() || "No special instructions",
+        financialsPayload,
+        cashierId,
+        Due,
+        customer_id: customer_id || selectedCustomer?._id,
+        selectedTaxId: selectedTaxId,
+        discount_id: selectedDiscountId,
+        module_id: moduleId,
+        free_discount: freeDiscountValue > 0 ? freeDiscountValue : undefined,
+        due_module: dueModuleValue > 0 ? dueModuleValue.toFixed(2) : undefined,
+        selectedTaxAmount: selectedTaxAmount,
+        password: forcedPassword || pendingFreeDiscountPassword || undefined,
+        coupon_code: appliedDiscount > 0 ? discountCode : undefined,
+      });
+    }
 
-  try {
-    const response = await postData(endpoint, payload, {
-      headers: { "Content-Type": "application/json" },
-    });
+    try {
+      const response = await postData(endpoint, payload, {
+        headers: { "Content-Type": "application/json" },
+      });
 
-    if (response?.success) {
-      // نجاح الطلب
-      toast.success(Due === 1 ? t("DueOrderCreated") : t("OrderPlaced"));
-      setPendingFreeDiscountPassword("");
+      if (response?.success) {
+        // نجاح الطلب
+        toast.success(Due === 1 ? t("DueOrderCreated") : t("OrderPlaced"));
+        setPendingFreeDiscountPassword("");
 
-      // دالة التنظيف والإغلاق (مشتركة)
-      const completeOrder = () => {
-        onClearCart?.();
-        onClose();
-      };
+        // دالة التنظيف والإغلاق (مشتركة)
+        const completeOrder = () => {
+          onClearCart?.();
+          onClose();
+        };
 
-      if (Due === 0) {
-        // طلب عادي (مش آجل)
-        const receiptData = prepareReceiptData(
-          safeOrderItems,
-          amountToPay,
-          order_tax,
-          totalDiscount,
-          appliedDiscount,
-          {},
-          null,
-          requiredTotal,
-          response.success,
-          response
-        );
+        if (Due === 0) {
+          // طلب عادي (مش آجل)
+          const receiptData = prepareReceiptData(
+            safeOrderItems,
+            amountToPay,
+            order_tax,
+            totalDiscount,
+            appliedDiscount,
+            {},
+            null,
+            requiredTotal,
+            response.success,
+            response
+          );
 
-        if (shouldPrintReceipt) {
-          // مع طباعة
-          printReceiptSilently(receiptData, response, () => {
+          if (shouldPrintReceipt) {
+            // مع طباعة
+            printReceiptSilently(receiptData, response, () => {
+              completeOrder();
+              toast.success(t("OrderCompletedSuccessfully"));
+            });
+          } else {
+            // بدون طباعة
             completeOrder();
-            toast.success(t("OrderCompletedSuccessfully"));
-          });
+            toast.success(t("OrderCompletedSuccessfully") + " (" + t("NoPrint") + ")");
+          }
         } else {
-          // بدون طباعة
+          // طلب آجل → بدون طباعة عادةً
           completeOrder();
-          toast.success(t("OrderCompletedSuccessfully") + " (" + t("NoPrint") + ")");
         }
       } else {
-        // طلب آجل → بدون طباعة عادةً
-        completeOrder();
+        // فشل من الـ API
+        toast.error(response?.message || t("FailedToProcessOrder"));
       }
-    } else {
-      // فشل من الـ API
-      toast.error(response?.message || t("FailedToProcessOrder"));
+    } catch (e) {
+      console.error("Submit error:", e);
+      toast.error(e.message || t("SubmissionFailed"));
     }
-  } catch (e) {
-    console.error("Submit error:", e);
-    toast.error(e.message || t("SubmissionFailed"));
-  }
-};
+  };
 
-const handleSelectCustomer = async (customer) => {
-  // عرض تحذير بس مش منع (لو عايزة تسمحي بالدين حتى لو زاد)
-  if (customer.amount_Due && requiredTotal > 0) {
-    const newTotalDue = customer.amount_Due + requiredTotal;
-    toast.info(
-      t("CustomerCurrentDue", { 
-        current: customer.amount_Due.toFixed(2),
-        new: newTotalDue.toFixed(2)
-      })
-    );
-  }
+  const handleSelectCustomer = async (customer) => {
+    // عرض تحذير بس مش منع (لو عايزة تسمحي بالدين حتى لو زاد)
+    if (customer.amount_Due && requiredTotal > 0) {
+      const newTotalDue = customer.amount_Due + requiredTotal;
+      toast.info(
+        t("CustomerCurrentDue", {
+          current: customer.amount_Due.toFixed(2),
+          new: newTotalDue.toFixed(2)
+        })
+      );
+    }
 
-  setSelectedCustomer(customer);
-  setCustomerSelectionOpen(false);
+    setSelectedCustomer(customer);
+    setCustomerSelectionOpen(false);
 
- await proceedWithOrderSubmission(1, customer._id);
-};
+    await proceedWithOrderSubmission(1, customer._id);
+  };
   const handleSubmitOrder = async () => {
     if (!isTotalMet || totalScheduled === 0) {
       return toast.error(
@@ -1034,10 +1058,10 @@ const handleSelectCustomer = async (customer) => {
               {loading
                 ? t("Processing")
                 : isDueOrder
-                ? selectedCustomer
-                  ? t("DueOrderReady")
-                  : t("SelectCustomer")
-                : t("ConfirmAndPay")}
+                  ? selectedCustomer
+                    ? t("DueOrderReady")
+                    : t("SelectCustomer")
+                  : t("ConfirmAndPay")}
             </Button>
           </div>
         </div>

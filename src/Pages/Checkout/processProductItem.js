@@ -6,9 +6,9 @@
 // utils/processProductItem.js
 
 export const processProductItem = (item) => {
-let product_price_id = null;
+  let product_price_id = null;
   // 1. لو المنتج different_price → نضيف الـ _id بتاع النسخة المختارة في options_id
-if (item.different_price && item.selectedVariation?.price_variation) {
+  if (item.different_price && item.selectedVariation?.price_variation) {
     product_price_id = item.selectedVariation.price_variation.toString();
   }
 
@@ -49,7 +49,7 @@ if (item.different_price && item.selectedVariation?.price_variation) {
   };
 
   // نضيف options_id فقط لو فيه قيم
-if (product_price_id) {
+  if (product_price_id) {
     payload.product_price_id = product_price_id;     // ← الجديد
   }
 
@@ -104,7 +104,7 @@ export const getOrderEndpoint = (hasDealItems) => {
 export const buildOrderPayload = ({
   orderItems,
   amountToPay,
- order_tax,         
+  order_tax,
   notes,
   financialsPayload,
   cashierId,
@@ -118,38 +118,39 @@ export const buildOrderPayload = ({
   selectedTaxAmount = 0,
   selectedTaxId,   // ← القيمة الفعلية للضريبة اليدوية
   password,
+  coupon_code,
 }) => {
   const products = orderItems.map(processProductItem);
 
-let customerId;
-if (customer_id) {
-  // الأولوية للـ customer_id اللي جاي explicit من الـ function call (حالة Due Order)
-  customerId = customer_id.toString();
-} else if (user_id) {
-  customerId = user_id.toString();
-} else {
-  customerId = sessionStorage.getItem("selected_customer_id")?.toString();
-}
+  let customerId;
+  if (customer_id) {
+    // الأولوية للـ customer_id اللي جاي explicit من الـ function call (حالة Due Order)
+    customerId = customer_id.toString();
+  } else if (user_id) {
+    customerId = user_id.toString();
+  } else {
+    customerId = sessionStorage.getItem("selected_customer_id")?.toString();
+  }
 
-if (!customerId) customerId = undefined;
-const finalTaxAmount = selectedTaxAmount > 0
+  if (!customerId) customerId = undefined;
+  const finalTaxAmount = selectedTaxAmount > 0
     ? parseFloat(selectedTaxAmount).toFixed(2)
     : order_tax ? parseFloat(order_tax).toFixed(2) : undefined
   const basePayload = {
     customer_id: customerId,
-     Due,
+    Due,
     grand_total: parseFloat(amountToPay).toFixed(2),
     products,
     bundles: [],
     financials: financialsPayload,
 
     // الضريبة: نستخدم الضريبة اليدوية لو موجودة، وإلا نستخدم اللي جاية من المنتجات
-order_tax: selectedTaxId 
-        ? selectedTaxId.toString() 
-        : undefined,
+    order_tax: selectedTaxId
+      ? selectedTaxId.toString()
+      : undefined,
     // الخصم: من القايمة (الـ ID بس)
     order_discount: discount_id ? discount_id.toString() : undefined,
-
+    coupon_code: coupon_code ? coupon_code.toString() : undefined,
     notes: notes?.trim() || "No notes",
     cashier_id: cashierId.toString(),
   };
