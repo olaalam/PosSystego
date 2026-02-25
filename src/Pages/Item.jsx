@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { usePost } from "@/Hooks/usePost";
+import { useGet } from "@/Hooks/useGet";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import Loading from "@/components/Loading";
@@ -8,6 +9,7 @@ import { useProductModal } from "@/Hooks/useProductModal";
 import CategorySelector from "./CategorySelector";
 import ProductCard from "./ProductCard";
 import ProductModal from "./ProductModal";
+import BundlesSidebarButton, { BundleGridCard, BundleDetailModal } from "./BundlesSection";
 import { useTranslation } from "react-i18next";
 import { buildProductPayload } from "@/services/productProcessor";
 
@@ -32,11 +34,12 @@ const PRODUCTS_PER_ROW = 4;
 const PRODUCTS_TO_SHOW_INITIALLY = INITIAL_PRODUCT_ROWS * PRODUCTS_PER_ROW;
 
 export default function Item({ onAddToOrder }) {
-  const [activeTab, setActiveTab] = useState("category"); // category, brand, feature
+  const [activeTab, setActiveTab] = useState("category"); // category, brand, feature, bundles
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedBrand, setSelectedBrand] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [visibleProductCount, setVisibleProductCount] = useState(PRODUCTS_TO_SHOW_INITIALLY);
+  const [selectedBundle, setSelectedBundle] = useState(null); // for bundle detail modal
   const { t, i18n } = useTranslation();
   const orderType = sessionStorage.getItem("order_type") || "dine_in";
   const { postData: postOrder, loading: orderLoading } = usePost();
@@ -116,8 +119,16 @@ export default function Item({ onAddToOrder }) {
     return brandProductsData?.data?.products || [];
   }, [brandProductsData]);
 
-  // ✅ 6. تحديد المنتجات حسب الـ Tab
+  // ✅ 6. Bundles
+  const { data: bundlesData, isLoading: bundlesLoading } = useGet(
+    "api/admin/pos-home/bundles",
+    { useCache: true }
+  );
+  const bundles = useMemo(() => bundlesData?.data?.bundles || [], [bundlesData]);
+
+  // ✅ 7. تحديد المنتجات حسب الـ Tab
   const productsSource = useMemo(() => {
+    if (activeTab === "bundles") return [];
     if (activeTab === "feature") return featuredProducts;
     if (activeTab === "brand") {
       return selectedBrand === "all" ? [] : brandProducts;
@@ -314,6 +325,29 @@ export default function Item({ onAddToOrder }) {
     }
   }, [orderType, onAddToOrder, postOrder, t]);
 
+  // ✅ Handle adding a Bundle to the order
+  const handleAddBundleToOrder = useCallback((bundle) => {
+    const bundleItem = {
+      _id: bundle._id,
+      temp_id: `bundle_${bundle._id}_${Date.now()}`,
+      name: bundle.name,
+      price: bundle.price, // Discounted price
+      originalPrice: bundle.price,
+      totalPrice: bundle.price,
+      count: 1,
+      quantity: 1,
+      isBundle: true,
+      bundleProducts: bundle.products,
+      preparation_status: "pending",
+      notes: "",
+      selectedExtras: [],
+      selectedExcludes: [],
+    };
+
+    onAddToOrder(bundleItem);
+    toast.success(t("BundleAddedToCart"));
+  }, [onAddToOrder, t]);
+
   const handleAddFromModal = (enhancedProduct, options = {}) => {
     handleAddToOrder(enhancedProduct, enhancedProduct.quantity, options);
   };
@@ -354,7 +388,8 @@ export default function Item({ onAddToOrder }) {
           {[
             { id: "category", label: t("Categories") },
             { id: "brand", label: t("Brands") },
-            { id: "feature", label: t("Featured") }
+            { id: "feature", label: t("Featured") },
+            { id: "bundles", label: t("Bundles") }
           ].map((tab) => (
             <button
               key={tab.id}
@@ -375,8 +410,16 @@ export default function Item({ onAddToOrder }) {
 
         {/* قائمة التصنيفات العمودية (Side Menu) */}
         <div className="w-38 flex-shrink-0 overflow-y-auto pr-2 custom-scrollbar flex flex-col gap-2">
-          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-2">
-            {activeTab === "category" ? t("Categories") : t("Brands")}
+
+          {/* 🎁 Bundles button — Pinned at TOP of sidebar */}
+          <BundlesSidebarButton
+            isActive={activeTab === "bundles"}
+            onSelect={() => handleTabChange("bundles")}
+            count={bundles.length}
+          />
+
+          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mt-2 mb-2 px-2">
+            {activeTab === "category" ? t("Categories") : activeTab === "brand" ? t("Brands") : activeTab === "bundles" ? t("Bundles") : t("Featured")}
           </h3>
 
           {activeTab === "category" && categories.map((cat) => (
@@ -411,37 +454,55 @@ export default function Item({ onAddToOrder }) {
           ))}
         </div>
 
-        {/* 3. شبكة المنتجات (Main Grid) */}
+        {/* Main Grid: Bundles or Products */}
         <div className="flex-1 overflow-y-auto pb-10 custom-scrollbar">
-          {isAnyLoading ? (
-            <div className="flex justify-center items-center h-64"><Loading /></div>
-          ) : filteredProducts.length === 0 ? (
-            <div className="text-center py-20 text-gray-400">{t("NoProductsFound")}</div>
-          ) : (
-            <>
+          {activeTab === "bundles" ? (
+            bundlesLoading ? (
+              <div className="flex justify-center items-center h-64"><Loading /></div>
+            ) : bundles.length === 0 ? (
+              <div className="text-center py-20 text-gray-400">{t("NoBundlesFound")}</div>
+            ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {productsToDisplay.map((product) => (
-                  <ProductCard
-                    key={product._id}
-                    product={product}
-                    onAddToOrder={handleAddToOrder}
-                    onOpenModal={openProductModal}
-                    orderLoading={orderLoading}
+                {bundles.map((bundle) => (
+                  <BundleGridCard
+                    key={bundle._id}
+                    bundle={bundle}
+                    onOpenModal={setSelectedBundle}
                   />
                 ))}
               </div>
-
-              {visibleProductCount < filteredProducts.length && (
-                <div className="flex justify-center mt-8">
-                  <Button
-                    onClick={handleShowMoreProducts}
-                    className="bg-purple-600 hover:bg-purple-700 px-10 py-6 rounded-2xl text-lg font-bold shadow-lg shadow-purple-200"
-                  >
-                    {t("ShowMoreProducts")}
-                  </Button>
+            )
+          ) : (
+            isAnyLoading ? (
+              <div className="flex justify-center items-center h-64"><Loading /></div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="text-center py-20 text-gray-400">{t("NoProductsFound")}</div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {productsToDisplay.map((product) => (
+                    <ProductCard
+                      key={product._id}
+                      product={product}
+                      onAddToOrder={handleAddToOrder}
+                      onOpenModal={openProductModal}
+                      orderLoading={orderLoading}
+                    />
+                  ))}
                 </div>
-              )}
-            </>
+
+                {visibleProductCount < filteredProducts.length && (
+                  <div className="flex justify-center mt-8">
+                    <Button
+                      onClick={handleShowMoreProducts}
+                      className="bg-purple-600 hover:bg-purple-700 px-10 py-6 rounded-2xl text-lg font-bold shadow-lg shadow-purple-200"
+                    >
+                      {t("ShowMoreProducts")}
+                    </Button>
+                  </div>
+                )}
+              </>
+            )
           )}
         </div>
       </div>
@@ -469,6 +530,15 @@ export default function Item({ onAddToOrder }) {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-[10000]">
           <Loading />
         </div>
+      )}
+
+      {/* ✅ Bundle Detail Modal */}
+      {selectedBundle && (
+        <BundleDetailModal
+          bundle={selectedBundle}
+          onClose={() => setSelectedBundle(null)}
+          onAddToOrder={handleAddBundleToOrder}
+        />
       )}
     </div>
   );

@@ -3,15 +3,12 @@
 /**
  * معالجة عنصر واحد من السلة وتحويله للشكل اللي الـ Backend بيفهمه
  */
-// utils/processProductItem.js
-
 export const processProductItem = (item) => {
   let product_price_id = null;
   // 1. لو المنتج different_price → نضيف الـ _id بتاع النسخة المختارة في options_id
   if (item.different_price && item.selectedVariation?.price_variation) {
     product_price_id = item.selectedVariation.price_variation.toString();
   }
-
 
   // 3. Addons (مع السعر)
   const addons = [];
@@ -50,7 +47,7 @@ export const processProductItem = (item) => {
 
   // نضيف options_id فقط لو فيه قيم
   if (product_price_id) {
-    payload.product_price_id = product_price_id;     // ← الجديد
+    payload.product_price_id = product_price_id;
   }
 
   // نضيف addons لو موجودة
@@ -64,17 +61,30 @@ export const processProductItem = (item) => {
 
   return payload;
 };
+
+/**
+ * معالجة الباقات (Bundles)
+ */
+export const processBundleItem = (bundle) => {
+  return {
+    bundle_id: bundle._id.toString(),
+    quantity: (bundle.count || bundle.quantity || 1).toString(),
+    price: parseFloat(bundle.price || 0).toFixed(2),
+    subtotal: (parseFloat(bundle.price || 0) * (bundle.count || bundle.quantity || 1)).toFixed(2),
+    note: bundle.notes?.trim() || "No notes",
+  };
+};
+
 /**
  * بناء الـ financials payload - account_id array
  */
-
 export const buildFinancialsPayload = (paymentSplits, financialAccounts = []) => {
   return paymentSplits.map((split) => {
     const account = financialAccounts.find(a => a._id === split.account_id);
     const isVisa = account?.name?.toLowerCase().includes("visa");
 
     const payload = {
-      account_id: split.account_id?.toString(), // ← تم تغيير _id إلى account_id
+      account_id: split.account_id?.toString(),
       amount: parseFloat(split.amount || 0).toFixed(2),
     };
 
@@ -89,18 +99,18 @@ export const buildFinancialsPayload = (paymentSplits, financialAccounts = []) =>
     return payload;
   });
 };
+
 /**
  * تحديد الـ Endpoint الصحيح
  */
 export const getOrderEndpoint = (hasDealItems) => {
   if (hasDealItems) return "cashier/deal/add";
-  return "api/admin/pos/sales"; // أو الـ endpoint الصح عندك
+  return "api/admin/pos/sales";
 };
 
 /**
  * بناء الـ Payload الأساسي - متوافق مع الباك إند
  */
-
 export const buildOrderPayload = ({
   orderItems,
   amountToPay,
@@ -116,15 +126,20 @@ export const buildOrderPayload = ({
   free_discount,
   due_module,
   selectedTaxAmount = 0,
-  selectedTaxId,   // ← القيمة الفعلية للضريبة اليدوية
+  selectedTaxId,
   password,
   coupon_code,
 }) => {
-  const products = orderItems.map(processProductItem);
+  const products = orderItems
+    .filter(item => !item.isBundle)
+    .map(processProductItem);
+
+  const bundles = orderItems
+    .filter(item => item.isBundle)
+    .map(processBundleItem);
 
   let customerId;
   if (customer_id) {
-    // الأولوية للـ customer_id اللي جاي explicit من الـ function call (حالة Due Order)
     customerId = customer_id.toString();
   } else if (user_id) {
     customerId = user_id.toString();
@@ -133,39 +148,29 @@ export const buildOrderPayload = ({
   }
 
   if (!customerId) customerId = undefined;
-  const finalTaxAmount = selectedTaxAmount > 0
-    ? parseFloat(selectedTaxAmount).toFixed(2)
-    : order_tax ? parseFloat(order_tax).toFixed(2) : undefined
+
   const basePayload = {
     customer_id: customerId,
     Due,
     grand_total: parseFloat(amountToPay).toFixed(2),
     products,
-    bundles: [],
+    bundles,
     financials: financialsPayload,
-
-    // الضريبة: نستخدم الضريبة اليدوية لو موجودة، وإلا نستخدم اللي جاية من المنتجات
-    order_tax: selectedTaxId
-      ? selectedTaxId.toString()
-      : undefined,
-    // الخصم: من القايمة (الـ ID بس)
+    order_tax: selectedTaxId ? selectedTaxId.toString() : undefined,
     order_discount: discount_id ? discount_id.toString() : undefined,
     coupon_code: coupon_code ? coupon_code.toString() : undefined,
     notes: notes?.trim() || "No notes",
     cashier_id: cashierId.toString(),
   };
 
-  // Due Module
   if (due_module > 0) {
     basePayload.due_module = parseFloat(due_module).toFixed(2);
   }
 
-  // Module ID
   if (module_id && module_id !== "all") {
     basePayload.module_id = module_id.toString();
   }
 
-  // Free Discount + Password
   if (free_discount && free_discount > 0) {
     basePayload.free_discount = parseFloat(free_discount).toFixed(2);
     if (password && password.trim()) {
@@ -173,7 +178,6 @@ export const buildOrderPayload = ({
     }
   }
 
-  // تنظيف الـ undefined
   Object.keys(basePayload).forEach(key => {
     if (basePayload[key] === undefined) {
       delete basePayload[key];
@@ -200,20 +204,17 @@ export const buildDealPayload = (orderItems, financialsPayload) => {
  */
 export const validatePaymentSplits = (paymentSplits, getDescriptionStatus) => {
   let total = 0;
-
   for (const split of paymentSplits) {
     const amount = parseFloat(split.amount || 0);
     if (amount <= 0) {
       return { valid: false, error: "Please enter a valid amount" };
     }
     total += amount;
-
-    if (getDescriptionStatus(split.account_id)) { // هنا التعديل
+    if (getDescriptionStatus(split.account_id)) {
       if (!split.checkout || split.checkout.length !== 4 || !/^\d{4}$/.test(split.checkout)) {
         return { valid: false, error: "Please enter last 4 digits" };
       }
     }
   }
-
   return { valid: true, totalPaid: total };
 };
