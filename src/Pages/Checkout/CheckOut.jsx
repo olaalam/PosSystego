@@ -43,6 +43,7 @@ const CheckOut = ({
   const cashierId = sessionStorage.getItem("cashier_id");
   const baseUrl = import.meta.env.VITE_API_BASE_URL;
   const { t } = useTranslation();
+
   const lastSelectedGroup = sessionStorage.getItem("last_selected_group");
 
   const { data: groupData } = useGet("cashier/group_product");
@@ -195,7 +196,14 @@ const CheckOut = ({
 
     let discountValue = 0;
     if (selectedDiscount.type === "percentage") {
-      discountValue = amountToPay * (selectedDiscount.amount / 100);
+      let rate = selectedDiscount.amount;
+
+      // لو القيمة أقل من 1 → نفترض إنها نسبة مئوية مكتوبة غلط (0.1 بدل 10)
+      if (rate < 1 && rate > 0) {
+        rate *= 100;  // 0.1 → 10
+      }
+
+      discountValue = amountToPay * (rate / 100);
     } else if (selectedDiscount.type === "value") {
       discountValue = selectedDiscount.amount;
     }
@@ -211,22 +219,6 @@ const CheckOut = ({
   const [appliedDiscount, setAppliedDiscount] = useState(0);
   const [discountError, setDiscountError] = useState(null);
   const [isCheckingDiscount, setIsCheckingDiscount] = useState(false);
-  const selectedTaxAmount = useMemo(() => {
-    if (!selectedTaxId || !taxesData?.data?.taxes) return 0;
-
-    const selectedTax = taxesData.data.taxes.find(
-      (t) => t._id === selectedTaxId
-    );
-    if (!selectedTax) return 0;
-
-    if (selectedTax.type === "percentage") {
-      return amountToPay * (selectedTax.amount / 100);
-    } else {
-      // fixed
-      return selectedTax.amount;
-    }
-  }, [selectedTaxId, taxesData, amountToPay]);
-
   const discountedAmount = useMemo(() => {
     let totalDiscountValue = 0;
 
@@ -244,6 +236,28 @@ const CheckOut = ({
 
     return Math.max(0, afterDiscount - freeDiscountValue);
   }, [amountToPay, appliedDiscount, selectedDiscountAmount, freeDiscount]);
+  const taxableAmount = useMemo(() => {
+    return discountedAmount;   // ← المبلغ بعد كل الخصومات (كود + list + free)
+  }, [discountedAmount]);
+  const selectedTaxAmount = useMemo(() => {
+    if (!selectedTaxId || !taxesData?.data?.taxes) return 0;
+
+    const selectedTax = taxesData.data.taxes.find(t => t._id === selectedTaxId);
+    if (!selectedTax) return 0;
+
+    console.log("Selected Tax raw amount:", selectedTax.amount);
+    console.log("Selected Tax type:", selectedTax.type);
+
+    if (selectedTax.type === "percentage") {
+      let rate = selectedTax.amount;
+      if (rate <= 1) rate *= 100; // fix common admin mistake
+      const taxValue = taxableAmount * (rate / 100);
+      console.log(`Calculated tax: ${taxValue} (from ${taxableAmount} × ${rate}%)`);
+      return taxValue;
+    } else {
+      return selectedTax.amount;
+    }
+  }, [selectedTaxId, taxesData, taxableAmount]);
 
   const requiredTotal = useMemo(() => {
     if (selectedPaymentItemIds.length > 0) {
@@ -259,6 +273,14 @@ const CheckOut = ({
     // المجموع بعد الخصومات + الضريبة اليدوية
     return discountedAmount + selectedTaxAmount;
   }, [orderItems, discountedAmount, selectedPaymentItemIds, selectedTaxAmount]);
+  console.log("===== CheckOut component LOADED =====");
+  console.log("amountToPay:", amountToPay);
+  console.log("discountedAmount:", discountedAmount);
+  console.log("taxableAmount:", taxableAmount);
+  console.log("selectedTaxAmount:", selectedTaxAmount);
+  console.log("requiredTotal:", requiredTotal);
+  console.log("Tax id selected:", selectedTaxId);
+
 
   const { totalScheduled, remainingAmount, changeAmount } = useMemo(() => {
     const sum = paymentSplits.reduce(
