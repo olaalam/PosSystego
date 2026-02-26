@@ -42,18 +42,36 @@ export default function PendingOrders() {
       console.log("✅ Data Found, Starting Navigation...");
       const orderRawData = actualData.sale || actualData;
 
-      // المنطق الخاص بجمع المنتجات
+      // المنطق الخاص بجمع المنتجات مع التعامل مع الهيكل المتداخل
       const itemsArray = actualData.products || orderRawData.order || orderRawData.order_details || [];
-      const mappedOrderDetails = itemsArray.map((item) => {
-        const productInfo = item.product || {};
-        return {
-          product_id: productInfo.id || productInfo._id || item.product_id || item._id,
-          product_name: productInfo.name || item.product_name || "Unknown Product",
-          price: parseFloat(item.price || 0),
-          count: parseInt(item.quantity || item.count || 1),
-          variation_name: item.variation_name || null,
-          addons: Array.isArray(item.options) ? item.options : (Array.isArray(item.addons) ? item.addons : [])
-        };
+      const mappedOrderDetails = itemsArray.flatMap((item) => {
+        const addons = Array.isArray(item.options) ? item.options : (Array.isArray(item.addons) ? item.addons : []);
+
+        if (item.product && Array.isArray(item.product)) {
+          // حالة الهيكل المتداخل: product هو مصفوفة من {product: {...}, count: ...}
+          return item.product.map((subItem) => {
+            const subProductInfo = subItem.product || subItem || {};
+            return {
+              product_id: subProductInfo.id || subProductInfo._id || subItem.product_id || subItem._id || item.product_id || item._id,
+              product_name: subProductInfo.name || subItem.product_name || item.product_name || "Unknown Product",
+              price: parseFloat(subItem.price || item.price || 0),
+              count: parseInt(subItem.quantity || subItem.count || item.quantity || item.count || 1),
+              variation_name: subItem.variation_name || item.variation_name || null,
+              addons: addons, // الإضافات مرتبطة بالعنصر الرئيسي
+            };
+          });
+        } else {
+          // الحالة العادية
+          const productInfo = item.product || {};
+          return [{
+            product_id: productInfo.id || productInfo._id || item.product_id || item._id,
+            product_name: productInfo.name || item.product_name || "Unknown Product",
+            price: parseFloat(item.price || 0),
+            count: parseInt(item.quantity || item.count || 1),
+            variation_name: item.variation_name || null,
+            addons: addons
+          }];
+        }
       });
 
       // حفظ في السلة
