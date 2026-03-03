@@ -45,6 +45,11 @@ export default function Card({
   const [bulkStatus, setBulkStatus] = useState("");
   const [itemLoadingStates, setItemLoadingStates] = useState({});
   const [shouldPrintReceipt, setShouldPrintReceipt] = useState(true); // ← جديد
+  // Preset discount values from card panel
+  const [presetFreeDiscount, setPresetFreeDiscount] = useState("");
+  const [presetDiscountId, setPresetDiscountId] = useState(null);
+  const [presetAppliedDiscount, setPresetAppliedDiscount] = useState(0);
+  const [presetDiscountCode, setPresetDiscountCode] = useState("");
   // Void Modal States
   const [showVoidModal, setShowVoidModal] = useState(false);
   const [voidItemId, setVoidItemId] = useState(null);
@@ -365,7 +370,6 @@ export default function Card({
         amountToPay={calculations.amountToPay}
         selectedPaymentCount={selectedPaymentItems.length}
         onCheckout={handleCheckOut}
-
         onSaveAsPending={() => orderActions.handleSaveAsPending(calculations.amountToPay, calculations.order_tax)}
         offerManagement={offerManagement}   // ده المهم
         isLoading={apiLoading}
@@ -375,6 +379,10 @@ export default function Card({
         onPrint={handlePrint}
         orderItems={orderItems}
         tableId={tableId}
+        onSetFreeDiscount={setPresetFreeDiscount}
+        onSetDiscountId={setPresetDiscountId}
+        onSetAppliedDiscount={setPresetAppliedDiscount}
+        onSetDiscountCode={setPresetDiscountCode}
       />
 
       {/* Modals */}
@@ -478,6 +486,10 @@ export default function Card({
           selectedPaymentItemIds={selectedPaymentItems}
           service_fees={calculations.totalOtherCharge}
           shouldPrintReceipt={shouldPrintReceipt}
+          initialFreeDiscount={presetFreeDiscount}
+          initialDiscountId={presetDiscountId}
+          initialAppliedDiscount={presetAppliedDiscount}
+          initialDiscountCode={presetDiscountCode}
         />
       )}
 

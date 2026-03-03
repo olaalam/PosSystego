@@ -1,8 +1,11 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import SummaryRow from "./SummaryRow";
 import Loading from "@/components/Loading";
-import { Phone, CreditCard, PrinterIcon, Clock } from "lucide-react";
+import { Phone, CreditCard, PrinterIcon, ChevronDown, ChevronRight, Tag } from "lucide-react";
+import { useGet } from "@/Hooks/useGet";
+import { usePost } from "@/Hooks/usePost";
+import { toast } from "react-toastify";
 
 // مكون الطباعة بنفس ديزاين الكاشير ريسيبت
 const PrintableOrder = React.forwardRef(({ orderItems, calculations, orderType, tableId, t, restaurantInfo }, ref) => {
@@ -263,6 +266,273 @@ const PrintableOrder = React.forwardRef(({ orderItems, calculations, orderType, 
   );
 });
 
+// ===== Checkout + Discount Panel Component =====
+function CheckoutDiscountPanel({
+  isLoading,
+  orderItemsLength,
+  orderType,
+  selectedPaymentCount,
+  onCheckout,
+  amountToPay,
+  onSetFreeDiscount,
+  onSetDiscountId,
+  onSetAppliedDiscount,
+  onSetDiscountCode,
+  t,
+}) {
+  const [showCheckoutDropdown, setShowCheckoutDropdown] = useState(false);
+  const [showDiscountOptions, setShowDiscountOptions] = useState(false);
+  const [activeDiscountTab, setActiveDiscountTab] = useState(null); // null | 'select' | 'free' | 'byCompany'
+
+  // Local states for each discount type
+  const [freeDiscountInput, setFreeDiscountInput] = useState("");
+  const [discountCodeInput, setDiscountCodeInput] = useState("");
+  const [selectedDiscountLocal, setSelectedDiscountLocal] = useState("0");
+
+  // Fetch discount list for Select tab
+  const { data: discountListData } = useGet("api/admin/discount");
+  const discountList = discountListData?.data?.discounts || [];
+
+  // Coupon API for By Company
+  const { postData: validateCoupon, loading: couponLoading } = usePost();
+
+  const isDisabled =
+    isLoading ||
+    orderItemsLength === 0 ||
+    (orderType === "dine_in" && selectedPaymentCount === 0);
+
+  const handleCheckoutMain = () => {
+    onCheckout(false);
+    setShowCheckoutDropdown(false);
+  };
+
+  const handleCheckoutWithPrint = () => {
+    onCheckout(true);
+    setShowCheckoutDropdown(false);
+  };
+
+  const handleCheckoutWithoutPrint = () => {
+    onCheckout(false);
+    setShowCheckoutDropdown(false);
+  };
+
+  const handleTabClick = (tab) => {
+    setActiveDiscountTab((prev) => (prev === tab ? null : tab));
+  };
+
+  const handleFreeDiscountSend = () => {
+    const val = parseFloat(freeDiscountInput) || 0;
+    onSetFreeDiscount?.(val > 0 ? freeDiscountInput : "");
+    if (val > 0) toast.success(`Free discount: ${val} EGP applied`);
+    else toast.info("Free discount cleared");
+  };
+
+  const handleByCompanyApply = async () => {
+    if (!discountCodeInput.trim()) return toast.error(t("PleaseEnterDiscountCode"));
+    try {
+      const response = await validateCoupon("api/admin/pos/apply-coupon", {
+        coupon_code: discountCodeInput.trim(),
+        grand_total: amountToPay,
+      });
+      if (response?.success) {
+        const couponData = response.data?.coupon;
+        if (couponData) {
+          let discountPercentage = 0;
+          if (couponData.type === "percentage") {
+            discountPercentage = couponData.amount;
+          } else {
+            discountPercentage = (couponData.amount / amountToPay) * 100;
+          }
+          onSetAppliedDiscount?.(discountPercentage);
+          onSetDiscountCode?.(discountCodeInput.trim());
+          toast.success(t("DiscountAppliedSuccess", { appliedDiscount: couponData.amount }));
+        }
+      } else {
+        const msg = response?.error?.message || t("InvalidOrOffDiscountCode");
+        toast.error(msg);
+      }
+    } catch (e) {
+      const backendError = e.response?.data?.error?.message || e.response?.data?.message || e.message;
+      toast.error(backendError);
+    }
+  };
+
+  const handleSelectChange = (val) => {
+    setSelectedDiscountLocal(val);
+    onSetDiscountId?.(val === "0" ? null : val);
+  };
+
+  return (
+    <div className="space-y-2">
+      {/* Row: CHECKOUT + DISCOUNT */}
+      <div className="flex gap-2">
+        {/* CHECKOUT Button with dropdown */}
+        <div className="relative flex-1">
+          <div className={`flex rounded-xl overflow-hidden shadow-sm ${isDisabled ? "opacity-50 pointer-events-none" : ""}`}>
+            <button
+              onClick={handleCheckoutMain}
+              disabled={isDisabled || isLoading}
+              className="flex-1 bg-[#8B2635] hover:bg-[#7a2030] text-white font-bold text-sm uppercase tracking-wider py-3 px-4 transition-all"
+            >
+              {isLoading ? <Loading /> : t("Checkout") || "CHECKOUT"}
+            </button>
+            <button
+              onClick={() => {
+                setShowCheckoutDropdown((v) => !v);
+                setShowDiscountOptions(false);
+              }}
+              disabled={isDisabled}
+              className="bg-[#7a2030] hover:bg-[#6a1a28] text-white px-3 border-l border-[#6a1a28] transition-all"
+            >
+              <ChevronDown size={16} />
+            </button>
+          </div>
+
+          {/* Dropdown Menu */}
+          {showCheckoutDropdown && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden">
+              <button
+                onClick={handleCheckoutWithPrint}
+                className="w-full flex items-center gap-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-all border-b border-gray-100"
+              >
+                <PrinterIcon size={15} className="text-gray-500" />
+                <span>{t("Checkout&Print") || "Checkout & Print"}</span>
+              </button>
+              <button
+                onClick={handleCheckoutWithoutPrint}
+                className="w-full flex items-center gap-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-all"
+              >
+                <CreditCard size={15} className="text-gray-500" />
+                <span>{t("CheckoutOnly") || "Checkout Only"}</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* DISCOUNT Button */}
+        <button
+          onClick={() => {
+            setShowDiscountOptions((v) => !v);
+            setShowCheckoutDropdown(false);
+          }}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm uppercase tracking-wider py-3 px-4 rounded-xl shadow-sm transition-all flex items-center gap-1"
+        >
+          <Tag size={15} />
+          <span>{t("Discount") || "DISCOUNT"}</span>
+          <ChevronRight
+            size={14}
+            className={`transition-transform ${showDiscountOptions ? "rotate-90" : ""}`}
+          />
+        </button>
+      </div>
+
+      {/* Discount Options Panel */}
+      {showDiscountOptions && (
+        <div className="bg-gray-50 border border-gray-200 rounded-xl overflow-hidden">
+          {/* Header */}
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider py-2 text-center border-b border-gray-200">
+            {t("DiscountOptions") || "Discount Options"}
+          </p>
+
+          {/* Tabs Row */}
+          <div className="grid grid-cols-3">
+            {/* Select Tab */}
+            <button
+              onClick={() => handleTabClick("select")}
+              className={`flex flex-col items-center justify-center gap-1 py-3 px-1 text-xs font-medium border-r border-gray-200 transition-all
+                ${activeDiscountTab === "select" ? "bg-blue-500 text-white" : "bg-white text-gray-700 hover:bg-gray-100"}`}
+            >
+              <Tag size={13} />
+              <span>{t("Select") || "Select"}</span>
+            </button>
+
+            {/* Free Tab */}
+            <button
+              onClick={() => handleTabClick("free")}
+              className={`flex flex-col items-center justify-center gap-1 py-3 px-1 text-xs font-medium border-r border-gray-200 transition-all
+                ${activeDiscountTab === "free" ? "bg-green-500 text-white" : "bg-white text-gray-700 hover:bg-gray-100"}`}
+            >
+              <span className="font-bold text-base leading-none">%</span>
+              <span>{t("Free") || "Free"}</span>
+            </button>
+
+            {/* By Company Tab */}
+            <button
+              onClick={() => handleTabClick("byCompany")}
+              className={`flex flex-col items-center justify-center gap-1 py-3 px-1 text-xs font-medium transition-all
+                ${activeDiscountTab === "byCompany" ? "bg-gray-800 text-white" : "bg-white text-gray-700 hover:bg-gray-100"}`}
+            >
+              <CreditCard size={13} />
+              <span className="text-center leading-tight">{t("ByCompany") || "By Company"}</span>
+            </button>
+          </div>
+
+          {/* Tab Content */}
+          {activeDiscountTab === "select" && (
+            <div className="p-3 border-t border-gray-200">
+              <select
+                value={selectedDiscountLocal}
+                onChange={(e) => handleSelectChange(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
+              >
+                <option value="0">{t("NoDiscount") || "No Discount"}</option>
+                {discountList.map((d) => (
+                  <option key={d._id} value={d._id}>
+                    {d.name} ({d.amount}{d.type === "percentage" ? "%" : " EGP"})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {activeDiscountTab === "free" && (
+            <div className="p-3 border-t border-gray-200">
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder={t("EnterFreeDiscount") || "Enter free discount"}
+                  value={freeDiscountInput}
+                  onChange={(e) => setFreeDiscountInput(e.target.value)}
+                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"
+                />
+                <button
+                  onClick={handleFreeDiscountSend}
+                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all"
+                >
+                  {t("Send") || "Send"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {activeDiscountTab === "byCompany" && (
+            <div className="p-3 border-t border-gray-200">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder={t("EnterDiscountCode") || "Enter discount code"}
+                  value={discountCodeInput}
+                  onChange={(e) => setDiscountCodeInput(e.target.value)}
+                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
+                />
+                <button
+                  onClick={handleByCompanyApply}
+                  disabled={couponLoading}
+                  className="bg-gray-800 hover:bg-gray-900 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all"
+                >
+                  {couponLoading ? "..." : (t("Apply") || "Apply")}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // المكون الرئيسي
 export default function OrderSummary({
   orderType,
@@ -284,6 +554,10 @@ export default function OrderSummary({
   tableId,
   t,
   onPrint: externalOnPrint,
+  onSetFreeDiscount,
+  onSetDiscountId,
+  onSetAppliedDiscount,
+  onSetDiscountCode,
 }) {
   const printRef = useRef();
 
@@ -435,35 +709,19 @@ export default function OrderSummary({
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-2">
-          {/* Checkout & Print */}
-          <Button
-            onClick={() => onCheckout(true)}
-            disabled={isLoading || orderItemsLength === 0 || (orderType === "dine_in" && selectedPaymentCount === 0)}
-            className="flex flex-col items-center justify-center gap-1.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white font-bold rounded-xl transition-all shadow-sm h-16"
-          >
-            {isLoading ? <Loading /> : (
-              <>
-                <PrinterIcon size={18} strokeWidth={2.5} />
-                <span className="text-[10px] uppercase tracking-wide leading-tight text-center">{t("Checkout&Print")}</span>
-              </>
-            )}
-          </Button>
-
-          {/* Checkout Only */}
-          <Button
-            onClick={() => onCheckout(false)}
-            disabled={isLoading || orderItemsLength === 0 || (orderType === "dine_in" && selectedPaymentCount === 0)}
-            className="flex flex-col items-center justify-center gap-1.5 bg-gray-700 hover:bg-gray-800 disabled:opacity-40 text-white font-bold rounded-xl transition-all shadow-sm h-16"
-          >
-            {isLoading ? <Loading /> : (
-              <>
-                <CreditCard size={18} strokeWidth={2.5} />
-                <span className="text-[10px] uppercase tracking-wide leading-tight text-center">{t("CheckoutOnly")}</span>
-              </>
-            )}
-          </Button>
-        </div>
+        <CheckoutDiscountPanel
+          isLoading={isLoading}
+          orderItemsLength={orderItemsLength}
+          orderType={orderType}
+          selectedPaymentCount={selectedPaymentCount}
+          onCheckout={onCheckout}
+          amountToPay={amountToPay}
+          onSetFreeDiscount={onSetFreeDiscount}
+          onSetDiscountId={onSetDiscountId}
+          onSetAppliedDiscount={onSetAppliedDiscount}
+          onSetDiscountCode={onSetDiscountCode}
+          t={t}
+        />
       )}
     </div>
   );

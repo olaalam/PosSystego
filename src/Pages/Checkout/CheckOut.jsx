@@ -39,6 +39,10 @@ const CheckOut = ({
   selectedPaymentItemIds = [],
   onClearCart,
   shouldPrintReceipt = true,
+  initialFreeDiscount = "",
+  initialDiscountId = null,
+  initialAppliedDiscount = 0,
+  initialDiscountCode = "",
 }) => {
   const cashierId = sessionStorage.getItem("cashier_id");
   const baseUrl = import.meta.env.VITE_API_BASE_URL;
@@ -68,9 +72,12 @@ const CheckOut = ({
   const { data: discountListData, loading: discountsLoading } =
     useGet("api/admin/discount");
   const { data: taxesData, loading: taxesLoading } = useGet("api/admin/taxes");
-  const [selectedDiscountId, setSelectedDiscountId] = useState(null);
+  const [selectedDiscountId, setSelectedDiscountId] = useState(initialDiscountId);
   const [selectedTaxId, setSelectedTaxId] = useState(null);
-  const [freeDiscount, setFreeDiscount] = useState("");
+  const [freeDiscount, setFreeDiscount] = useState(initialFreeDiscount);
+  const [appliedDiscount, setAppliedDiscount] = useState(initialAppliedDiscount);
+  const [discountCode, setDiscountCode] = useState(initialDiscountCode);
+
 
   // === QZ Tray Connection ===
   useEffect(() => {
@@ -215,10 +222,9 @@ const CheckOut = ({
   }, [discountListData, selectedDiscountId, amountToPay]);
 
   const [isDueOrder, setIsDueOrder] = useState(false);
-  const [discountCode, setDiscountCode] = useState("");
-  const [appliedDiscount, setAppliedDiscount] = useState(0);
   const [discountError, setDiscountError] = useState(null);
   const [isCheckingDiscount, setIsCheckingDiscount] = useState(false);
+
   const discountedAmount = useMemo(() => {
     let totalDiscountValue = 0;
 
@@ -690,8 +696,59 @@ const CheckOut = ({
     await proceedWithOrderSubmission(0);
   };
 
+  // Determine the "active" / selected account method for display card-style
+  const selectedAccountId = paymentSplits[0]?.account_id;
+
+  const handleCardSelect = (accountId) => {
+    // Special handling for Due
+    if (accountId === "due") {
+      setIsDueOrder(true);
+      return;
+    }
+    setIsDueOrder(false);
+    // For split: add a new split if not already in split mode
+    if (accountId === "split") {
+      handleAddSplit();
+      return;
+    }
+    // Normal account select
+    if (paymentSplits.length === 1) {
+      handleAccountChange(paymentSplits[0]._id, accountId);
+    } else {
+      // reset to single split
+      setPaymentSplits([
+        {
+          _id: "split-1",
+          account_id: accountId,
+          amount: requiredTotal,
+          checkout: "",
+          transition_id: "",
+        },
+      ]);
+    }
+  };
+
+  // Group accounts: first 3 as main row, rest + Due + Split in second row
+  const mainAccounts = financialAccounts.slice(0, 3);
+  const extraAccounts = financialAccounts.slice(3);
+
+  const getAccountIcon = (name) => {
+    const n = (name || "").toLowerCase();
+    if (n.includes("vodafone")) return "📱";
+    if (n.includes("instapay")) return "💳";
+    if (n.includes("cash")) return "💵";
+    if (n.includes("visa")) return "💳";
+    return "💰";
+  };
+
+  const isCardSelected = (accountId) => {
+    if (isDueOrder) return false;
+    if (paymentSplits.length > 1) return false;
+    return String(paymentSplits[0]?.account_id) === String(accountId);
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
       <CustomerSelectionModal
         isOpen={customerSelectionOpen}
         onClose={() => setCustomerSelectionOpen(false)}
@@ -703,389 +760,251 @@ const CheckOut = ({
         requiredTotal={requiredTotal}
       />
 
-      <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl h-auto flex flex-col">
-        <div className="bg-white p-4 border-b flex items-center justify-between">
-          <h2 className="text-2xl font-semibold">{t("ProcessPayment")}</h2>
+      <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-5 pb-3">
+          <h2 className="text-2xl font-semibold text-gray-800">{t("Checkout") || "Checkout"}</h2>
           <button
             onClick={onClose}
-            className="text-4xl p-2 rounded-full hover:bg-gray-100"
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 text-lg transition-all"
           >
-            X
+            ✕
           </button>
         </div>
 
-        <div className="p-8 overflow-y-auto max-h-[calc(90vh-6rem)]">
-          <div className="mb-6 border-b pb-4">
-            <div className="flex justify-between mb-2">
-              <span>{t("OriginalAmount")}</span>
-              <span>
-                {amountToPay.toFixed(2)} {t("EGP")}
-              </span>
-            </div>
+        <div className="px-6 pb-6 overflow-y-auto max-h-[calc(90vh-5rem)]">
 
-            {appliedDiscount > 0 && (
-              <div className="flex justify-between mb-2">
-                <span>
-                  {t("Discount")} ({appliedDiscount}%):
-                </span>
-                <span>
-                  -{(amountToPay * (appliedDiscount / 100)).toFixed(2)}{" "}
-                  {t("EGP")}
-                </span>
-              </div>
-            )}
-
-            {selectedDiscountAmount > 0 && appliedDiscount === 0 && (
-              <div className="flex justify-between mb-2 text-blue-600 font-medium">
-                <span>{t("ListDiscount")}:</span>
-                <span>
-                  -{selectedDiscountAmount.toFixed(2)} {t("EGP")}
-                </span>
-              </div>
-            )}
-
-            {freeDiscount && parseFloat(freeDiscount) > 0 && (
-              <div className="flex justify-between mb-2 text-purple-600 font-medium">
-                <span>{t("FreeDiscount")}:</span>
-                <span>
-                  -{parseFloat(freeDiscount).toFixed(2)} {t("EGP")}
-                </span>
-              </div>
-            )}
-
-            <div className="flex justify-between mb-2 font-bold text-lg">
-              <span>{t("TotalAmount")}</span>
-              <span>
-                {requiredTotal.toFixed(2)} {t("EGP")}
-              </span>
-            </div>
-            <div className="flex justify-between mb-2">
-              <span>{t("Remaining")}</span>
-              <span
-                className={
-                  remainingAmount > 0 ? "text-bg-secondary" : "text-teal-600"
-                }
+          {/* Payment Method Cards - Row 1 */}
+          <div className="grid grid-cols-3 gap-3 mb-3">
+            {mainAccounts.map((acc) => (
+              <button
+                key={acc._id}
+                onClick={() => handleCardSelect(String(acc._id))}
+                className={`flex flex-col items-center justify-center gap-1 rounded-xl border-2 py-4 px-2 transition-all
+                  ${isCardSelected(acc._id)
+                    ? "border-[#8B2635] bg-red-50 text-[#8B2635]"
+                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+                  }`}
               >
-                {remainingAmount.toFixed(2)} {t("EGP")}
-              </span>
-            </div>
-            {changeAmount > 0 && (
-              <div className="flex justify-between">
-                <span>{t("Change")}:</span>
-                <span className="text-teal-600">
-                  {changeAmount.toFixed(2)} {t("EGP")}
-                </span>
-              </div>
-            )}
+                <span className="text-2xl">{getAccountIcon(acc.name)}</span>
+                <span className="text-xs font-medium text-center leading-tight">{acc.name}</span>
+              </button>
+            ))}
           </div>
 
-          {isDueModuleAllowed && remainingAmount > 0.01 && (
-            <div className="mt-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-              <div className="text-center mb-4">
-                <p className="text-lg font-bold text-purple-600">
-                  المنصة هتدفع الباقي (Due Module):{" "}
-                  <strong>
-                    {remainingAmount.toFixed(2)} {t("EGP")}
-                  </strong>
-                </p>
-              </div>
-
-              <Button
-                className="w-full text-white text-lg font-bold py-6 bg-purple-600 hover:bg-purple-700"
-                disabled={loading}
-                onClick={() =>
-                  proceedWithOrderSubmission(0, undefined, remainingAmount)
-                }
+          {/* Payment Method Cards - Row 2: extra accounts + Due + Split */}
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            {extraAccounts.map((acc) => (
+              <button
+                key={acc._id}
+                onClick={() => handleCardSelect(String(acc._id))}
+                className={`flex flex-col items-center justify-center gap-1 rounded-xl border-2 py-4 px-2 transition-all
+                  ${isCardSelected(acc._id)
+                    ? "border-[#8B2635] bg-red-50 text-[#8B2635]"
+                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+                  }`}
               >
-                تأكيد الطلب مع Due Module ({remainingAmount.toFixed(2)}{" "}
-                {t("EGP")})
-              </Button>
-            </div>
-          )}
+                <span className="text-2xl">{getAccountIcon(acc.name)}</span>
+                <span className="text-xs font-medium text-center leading-tight">{acc.name}</span>
+              </button>
+            ))}
 
-          <div className="mb-6">
-            <label className="block text-sm font-medium mb-2">
-              {t("OrderNotes")}
-            </label>
-            <Textarea
-              placeholder={t("OrderNotesPlaceholder")}
-              value={orderNotes}
-              onChange={(e) => setOrderNotes(e.target.value)}
-              className="w-full min-h-[100px] resize-none"
-              maxLength={500}
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              {orderNotes.length}/500 {t("characters")}
-            </p>
-          </div>
-
-          <div className="mb-6">
-            <label className="block text-sm font-medium mb-2">
-              {t("FreeDiscount")} ({t("EGP")})
-            </label>
-            <Input
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder={t("EnterFreeDiscount")}
-              value={freeDiscount}
-              onChange={(e) => setFreeDiscount(e.target.value)}
-              className="w-full"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              {t("FreeDiscountHint")}
-            </p>
-          </div>
-
-          <div className="mb-6">
-            <label className="block text-sm mb-1">
-              {t("DiscountbyCompany")}
-            </label>
-            <div className="flex space-x-2">
-              <Input
-                type="text"
-                placeholder={t("EnterDiscountCode")}
-                value={discountCode}
-                onChange={(e) => setDiscountCode(e.target.value)}
-                disabled={isCheckingDiscount}
-              />
-              <Button
-                onClick={handleApplyDiscount}
-                disabled={isCheckingDiscount || !discountCode}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                {isCheckingDiscount ? t("Checking") : t("Apply")}
-              </Button>
-            </div>
-            {discountError && (
-              <p className="mt-2 text-purple-500 text-sm">{discountError}</p>
-            )}
-            {appliedDiscount > 0 && (
-              <p className="mt-2 text-teal-600 text-sm">
-                {t("DiscountAppliedSuccess", { appliedDiscount })}
-              </p>
-            )}
-          </div>
-
-          <div className="mb-6 flex gap-3">
-            <label className="block text-sm mb-1">
-              {t("SelectDiscountFromList")}
-            </label>
-            <Select
-              value={String(selectedDiscountId || "0")}
-              onValueChange={(val) => {
-                const _id = val === "0" ? null : val;
-                setSelectedDiscountId(_id);
-              }}
-              disabled={
-                discountsLoading || !discountListData?.data?.discounts?.length
-              }
+            {/* Due */}
+            <button
+              onClick={() => handleCardSelect("due")}
+              className={`flex flex-col items-center justify-center gap-1 rounded-xl border-2 py-4 px-2 transition-all
+                ${isDueOrder
+                  ? "border-orange-500 bg-orange-50 text-orange-600"
+                  : "border-gray-200 bg-white text-orange-500 hover:border-orange-300 hover:bg-orange-50"
+                }`}
             >
-              <SelectTrigger>
-                <SelectValue placeholder={t("ChooseDiscount")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem key="none" value="0">
-                  {t("NoDiscount")}
-                </SelectItem>
-                {discountListData?.data?.discounts?.map((discount) => (
-                  <SelectItem key={discount._id} value={String(discount._id)}>
-                    {discount.name} ({discount.amount})
-                    {/* {discount.type === "percentage" ? "%" : t("EGP")}) */}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {discountsLoading && (
-              <p className="mt-2 text-sm text-gray-500">
-                {t("LoadingDiscounts")}
-              </p>
-            )}
+              <span className="text-2xl">🕐</span>
+              <span className="text-xs font-medium">{t("Due") || "Due"}</span>
+            </button>
+
+            {/* Split */}
+            <button
+              onClick={() => handleCardSelect("split")}
+              className={`flex flex-col items-center justify-center gap-1 rounded-xl border-2 py-4 px-2 transition-all
+                ${paymentSplits.length > 1
+                  ? "border-blue-500 bg-blue-50 text-blue-600"
+                  : "border-gray-200 bg-white text-blue-500 hover:border-blue-300 hover:bg-blue-50"
+                }`}
+            >
+              <span className="text-2xl">🔀</span>
+              <span className="text-xs font-medium">{t("Split") || "Split"}</span>
+            </button>
           </div>
-          <label className="block text-sm mb-1">{t("SelectTaxFromList")}</label>
-          <Select
-            value={selectedTaxId || "0"}
-            onValueChange={(val) => {
-              setSelectedTaxId(val === "0" ? null : val);
-            }}
-            disabled={taxesLoading || !taxesData?.data?.taxes?.length}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder={t("NoTaxSelected")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="0">{t("NoTax")}</SelectItem>
-              {taxesData?.data?.taxes
-                ?.filter((tax) => tax.status === true)
-                .map((tax) => (
-                  <SelectItem key={tax._id} value={tax._id}>
-                    {tax.name} ({tax.amount})
-                    {/* {tax.type === "percentage" ? "%" : ` ${t("EGP")} fixed`}) */}
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
 
-          {taxesLoading && (
-            <p className="mt-2 text-sm text-gray-500">{t("LoadingTaxes")}</p>
-          )}
-          {!taxesData?.data?.taxes?.length && !taxesLoading && (
-            <p className="mt-2 text-sm text-gray-500">
-              {t("NoTaxesAvailable")}
-            </p>
-          )}
-
-          <div className="space-y-6">
-            {paymentSplits.map((split) => (
-              <div key={split._id} className="space-y-3">
-                <div className="flex items-center space-x-4">
-                  <div className="w-40">
-                    <Select
+          {/* Split Payment Details */}
+          {paymentSplits.length > 1 && (
+            <div className="mb-4 space-y-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+              <p className="text-sm font-semibold text-gray-600">{t("PaymentDetails") || "Payment Details"}</p>
+              {paymentSplits.map((split, idx) => (
+                <div key={split._id} className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500 w-5">#{idx + 1}</span>
+                  <div className="w-32">
+                    <select
                       value={String(split.account_id)}
-                      onValueChange={(val) =>
-                        handleAccountChange(split._id, val)
-                      }
+                      onChange={(e) => handleAccountChange(split._id, e.target.value)}
+                      className="w-full text-xs border border-gray-300 rounded-lg px-2 py-1.5 bg-white"
                     >
-                      <SelectTrigger>
-                        <SelectValue>
-                          {getAccountNameById(split.account_id)}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {financialAccounts.map((acc) => (
-                          <SelectItem key={acc._id} value={String(acc._id)}>
-                            {acc.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      {financialAccounts.map((acc) => (
+                        <option key={acc._id} value={String(acc._id)}>{acc.name}</option>
+                      ))}
+                    </select>
                   </div>
-                  <div className="relative flex-grow">
-                    <Input
+                  <div className="flex-1 relative">
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-500">{t("EGP")}</span>
+                    <input
                       type="number"
                       min="0"
                       value={split.amount === 0 ? "" : String(split.amount)}
-                      onChange={(e) =>
-                        handleAmountChange(split._id, e.target.value)
-                      }
-                      className="pl-16"
+                      onChange={(e) => handleAmountChange(split._id, e.target.value)}
+                      className="w-full pl-10 pr-2 py-1.5 text-sm border border-gray-300 rounded-lg"
                     />
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2">
-                      {t("EGP")}
-                    </span>
                   </div>
-                  {getDescriptionStatus(split.account_id) && (
-                    <Input
-                      type="text"
-                      placeholder="Last 4 digits"
-                      value={split.checkout}
-                      onChange={(e) =>
-                        handleDescriptionChange(split._id, e.target.value)
-                      }
-                      maxLength={4}
-                      className="w-32"
-                    />
-                  )}
                   {paymentSplits.length > 1 && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
+                    <button
                       onClick={() => handleRemoveSplit(split._id)}
+                      className="w-7 h-7 flex items-center justify-center bg-red-500 text-white rounded-full text-xs hover:bg-red-600 transition-all"
                     >
-                      {t("Remove")}
-                    </Button>
+                      ✕
+                    </button>
                   )}
                 </div>
+              ))}
+              {remainingAmount > 0 && (
+                <button
+                  onClick={handleAddSplit}
+                  className="text-sm text-blue-600 hover:underline"
+                >
+                  + {t("AddAccountSplit") || "Add Split"}
+                </button>
+              )}
+            </div>
+          )}
 
-                {isVisaAccount(split.account_id) && (
-                  <div className="ml-44 flex items-center gap-2">
-                    <label className="text-sm text-gray-600 whitespace-nowrap">
-                      {t("TransactionID")}:
-                    </label>
-                    <Input
-                      type="text"
-                      placeholder={t("EnterTransactionID")}
-                      value={split.transition_id || ""}
-                      onChange={(e) =>
-                        handleTransitionIdChange(split._id, e.target.value)
-                      }
-                      className="flex-1"
-                    />
-                  </div>
-                )}
-              </div>
-            ))}
-            {remainingAmount > 0 && (
-              <Button
-                variant="link"
-                onClick={handleAddSplit}
-                className="text-sm text-blue-600"
-              >
-                {t("AddAccountSplit")}
-              </Button>
-            )}
-          </div>
+          {/* Visa Transaction ID */}
+          {paymentSplits.length === 1 && isVisaAccount(paymentSplits[0]?.account_id) && (
+            <div className="mb-4 flex items-center gap-2">
+              <label className="text-sm text-gray-600 whitespace-nowrap">{t("TransactionID")}:</label>
+              <input
+                type="text"
+                placeholder={t("EnterTransactionID")}
+                value={paymentSplits[0]?.transition_id || ""}
+                onChange={(e) => handleTransitionIdChange(paymentSplits[0]._id, e.target.value)}
+                className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg"
+              />
+            </div>
+          )}
 
-          <div className="mt-6">
-            <label className="block text-sm mb-1">
-              {t("AmountPaidByCustomer")}
-            </label>
+          {/* Description field */}
+          {paymentSplits.length === 1 && getDescriptionStatus(paymentSplits[0]?.account_id) && (
+            <div className="mb-4">
+              <input
+                type="text"
+                placeholder="Last 4 digits"
+                value={paymentSplits[0]?.checkout || ""}
+                onChange={(e) => handleDescriptionChange(paymentSplits[0]._id, e.target.value)}
+                maxLength={4}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg"
+              />
+            </div>
+          )}
+
+          {/* Amount by Customer */}
+          <div className="mb-3">
+            <label className="block text-sm text-gray-600 mb-1">{t("AmountPaidByCustomer") || "Amount by Customer"}</label>
             <div className="relative">
-              <Input
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">{t("EGP")}</span>
+              <input
                 type="number"
                 min="0"
-                placeholder={t("EnterAmountPaid")}
+                placeholder="0.00"
                 value={customerPaid}
                 onChange={(e) => setCustomerPaid(e.target.value)}
-                className="pl-16"
+                className="w-full pl-14 pr-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#8B2635]/30"
               />
-              <span className="absolute left-3 top-1/2 -translate-y-1/2">
-                {t("EGP")}
-              </span>
             </div>
             {parseFloat(customerPaid) > requiredTotal && (
-              <p className="mt-2 text-teal-600 text-sm font-semibold">
+              <p className="mt-1 text-teal-600 text-sm font-semibold">
                 {t("ChangeDue", { value: calculatedChange.toFixed(2) })}
               </p>
             )}
           </div>
 
-          <div className="mt-6 flex items-center gap-3 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-            <input
-              type="checkbox"
-              _id="isDueOrder"
-              checked={isDueOrder}
-              onChange={(e) => {
-                setIsDueOrder(e.target.checked);
-                if (!e.target.checked) {
-                  setSelectedCustomer(null);
-                }
-              }}
-              className="w-5 h-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
-            />
-            <label
-              htmlFor="isDueOrder"
-              className="text-sm font-medium text-gray-700 cursor-pointer"
-            >
-              {t("MarkAsDueOrder")}
-            </label>
+          {/* Due Module Banner */}
+          {isDueModuleAllowed && remainingAmount > 0.01 && (
+            <div className="mb-3 p-3 bg-purple-50 border border-purple-200 rounded-xl">
+              <p className="text-sm font-bold text-purple-600 text-center mb-2">
+                Due Module: <strong>{remainingAmount.toFixed(2)} {t("EGP")}</strong>
+              </p>
+              <Button
+                className="w-full text-white bg-purple-600 hover:bg-purple-700"
+                disabled={loading}
+                onClick={() => proceedWithOrderSubmission(0, undefined, remainingAmount)}
+              >
+                {t("ConfirmWithDueModule") || `Confirm (${remainingAmount.toFixed(2)} ${t("EGP")})`}
+              </Button>
+            </div>
+          )}
+
+          {/* Summary: discounts + amounts info */}
+          {(appliedDiscount > 0 || selectedDiscountAmount > 0 || (freeDiscount && parseFloat(freeDiscount) > 0)) && (
+            <div className="mb-3 p-3 bg-gray-50 border border-gray-100 rounded-xl text-sm space-y-1">
+              {appliedDiscount > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">{t("Discount")} ({appliedDiscount}%)</span>
+                  <span className="text-red-500">-{(amountToPay * (appliedDiscount / 100)).toFixed(2)} {t("EGP")}</span>
+                </div>
+              )}
+              {selectedDiscountAmount > 0 && appliedDiscount === 0 && (
+                <div className="flex justify-between text-blue-600">
+                  <span>{t("ListDiscount")}</span>
+                  <span>-{selectedDiscountAmount.toFixed(2)} {t("EGP")}</span>
+                </div>
+              )}
+              {freeDiscount && parseFloat(freeDiscount) > 0 && (
+                <div className="flex justify-between text-purple-600">
+                  <span>{t("FreeDiscount")}</span>
+                  <span>-{parseFloat(freeDiscount).toFixed(2)} {t("EGP")}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Big Total Amount */}
+          <div className="bg-gray-50 rounded-xl py-4 mb-4 text-center">
+            <span className="text-4xl font-bold text-[#8B2635]">
+              {requiredTotal.toFixed(2)} {t("EGP")}
+            </span>
+            {remainingAmount > 0 && (
+              <p className="text-sm text-gray-500 mt-1">
+                {t("Remaining")}: {remainingAmount.toFixed(2)} {t("EGP")}
+              </p>
+            )}
+            {changeAmount > 0 && (
+              <p className="text-sm text-teal-600 font-semibold mt-1">
+                {t("Change")}: {changeAmount.toFixed(2)} {t("EGP")}
+              </p>
+            )}
           </div>
 
-          <div className="flex space-x-4 mt-6">
-            <Button
-              className="flex-1 text-white bg-bg-secondary hover:bg-teal-700"
-              disabled={loading || !isTotalMet}
-              onClick={handleSubmitOrder}
-            >
-              {loading
-                ? t("Processing")
-                : isDueOrder
-                  ? selectedCustomer
-                    ? t("DueOrderReady")
-                    : t("SelectCustomer")
-                  : t("ConfirmAndPay")}
-            </Button>
-          </div>
+          {/* PAY NOW Button */}
+          <Button
+            className="w-full bg-[#8B2635] hover:bg-[#7a2030] text-white text-lg font-bold py-6 rounded-xl transition-all shadow-md"
+            disabled={loading || (!isTotalMet && !isDueOrder)}
+            onClick={handleSubmitOrder}
+          >
+            {loading
+              ? t("Processing")
+              : isDueOrder
+                ? selectedCustomer
+                  ? t("DueOrderReady")
+                  : t("SelectCustomer") || "Select Customer"
+                : t("PayNow") || "PAY NOW"}
+          </Button>
         </div>
       </div>
 
