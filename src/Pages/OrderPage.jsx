@@ -246,7 +246,7 @@ export default function OrderPage({
           orderItems={currentOrderItems}
         />
       </div>
-      <div className="w-full lg:w-[30%] h-full overflow-y-auto">
+      <div className="w-full lg:w-[30%] h-full overflow-y-auto scrollbar-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <Card
           key={refreshTrigger}
           orderItems={currentOrderItems}

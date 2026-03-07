@@ -372,7 +372,7 @@ function CheckoutDiscountPanel({
             <button
               onClick={handleCheckoutMain}
               disabled={isDisabled || isLoading}
-              className="flex-1 bg-[#8B2635] hover:bg-[#7a2030] text-white font-bold text-sm uppercase tracking-wider py-3 px-4 transition-all"
+              className="flex-1 bg-red-700 hover:bg-red-700/80 text-white font-bold text-sm uppercase tracking-wider py-3 px-4 transition-all"
             >
               {isLoading ? <Loading /> : t("Checkout") || "CHECKOUT"}
             </button>
@@ -382,7 +382,7 @@ function CheckoutDiscountPanel({
                 setShowDiscountOptions(false);
               }}
               disabled={isDisabled}
-              className="bg-[#7a2030] hover:bg-[#6a1a28] text-white px-3 border-l border-[#6a1a28] transition-all"
+              className="bg-red-700 hover:bg-red-700/80 text-white px-3 border-l border-red-700 transition-all"
             >
               <ChevronDown size={16} />
             </button>
@@ -415,7 +415,7 @@ function CheckoutDiscountPanel({
             setShowDiscountOptions((v) => !v);
             setShowCheckoutDropdown(false);
           }}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm uppercase tracking-wider py-3 px-4 rounded-xl shadow-sm transition-all flex items-center gap-1"
+          className="bg-gray-700 hover:bg-gray-700/80  text-white font-bold text-sm uppercase tracking-wider py-3 px-4 rounded-xl shadow-sm transition-all flex items-center gap-1"
         >
           <Tag size={15} />
           <span>{t("Discount") || "DISCOUNT"}</span>

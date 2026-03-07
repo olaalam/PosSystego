@@ -273,7 +273,7 @@ export default function BundlesSidebarButton({ isActive, onSelect, count }) {
             onClick={onSelect}
             className={`flex flex-col items-center justify-center p-4 rounded-2xl transition-all border-2 min-h-[100px] w-full ${isActive
                 ? "border-purple-600 bg-purple-50 text-purple-700 shadow-md"
-                : "border-transparent bg-[#5C1A1A] text-white hover:opacity-90"
+                : "border-transparent bg-gray-700 hover:bg-gray-700/80  text-white "
                 }`}
         >
             <div
