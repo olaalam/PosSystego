@@ -329,7 +329,7 @@ export default function Navbar() {
                     <div className="w-8 h-8 rounded-full border border-current flex items-center justify-center mb-1 opacity-80">
                       <FaListAlt className="text-sm" />
                     </div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider">{t("take_away")}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider">{t("POS")}</span>
                   </TabsTrigger>
 
                   <TabsTrigger

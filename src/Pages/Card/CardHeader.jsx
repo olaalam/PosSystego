@@ -17,7 +17,7 @@ export default function CardHeader({
         {/* Pending Orders */}
         <button
           onClick={handleViewPendingOrders}
-          className="flex-1 flex flex-col items-center justify-center gap-1.5 bg-[#D4860B] hover:bg-[#c07a09] active:scale-95 text-white font-bold py-3 px-1 rounded-xl transition-all duration-150 shadow-md aspect-square max-h-[80px]"
+          className="flex-1 flex flex-col items-center justify-center gap-1.5 bg-gray-700 hover:bg-gray-700/80   active:scale-95 text-white font-bold py-3 px-1 rounded-xl transition-all duration-150 shadow-md aspect-square max-h-[80px]"
         >
           <Clock size={20} strokeWidth={2.5} />
           <span className="uppercase text-[10px] leading-tight text-center tracking-wide">
@@ -30,7 +30,7 @@ export default function CardHeader({
           <button
             onClick={onSaveAsPending}
             disabled={isLoading || orderItems.length === 0}
-            className="flex-1 flex flex-col items-center justify-center gap-1.5 bg-[#E0440E] hover:bg-[#c93c0c] active:scale-95 disabled:opacity-40 text-white font-bold py-3 px-1 rounded-xl transition-all duration-150 shadow-md aspect-square max-h-[80px]"
+            className="flex-1 flex flex-col items-center justify-center gap-1.5 bg-white hover:bg-white/80 text-black active:scale-95 disabled:opacity-40  font-bold py-3 px-1 rounded-xl transition-all duration-150 shadow-md aspect-square max-h-[80px]"
           >
             <Save size={20} strokeWidth={2.5} />
             <span className="uppercase text-[10px] leading-tight text-center tracking-wide">
@@ -43,7 +43,7 @@ export default function CardHeader({
         <button
           onClick={handleClearAllItems}
           disabled={isLoading || orderItems.length === 0}
-          className="flex-1 flex flex-col items-center justify-center gap-1.5 bg-purple-600 hover:bg-purple-700 active:scale-95 disabled:opacity-40 text-white font-bold py-3 px-1 rounded-xl transition-all duration-150 shadow-md aspect-square max-h-[80px] relative"
+          className="flex-1 flex flex-col items-center justify-center gap-1.5 bg-red-700 hover:bg-red-700/80 active:scale-95 disabled:opacity-40 text-gray-700 font-bold py-3 px-1 rounded-xl transition-all duration-150 shadow-md aspect-square max-h-[80px] relative"
         >
           <Trash2 size={20} strokeWidth={2.5} />
           <span className="uppercase text-[10px] leading-tight text-center tracking-wide">
