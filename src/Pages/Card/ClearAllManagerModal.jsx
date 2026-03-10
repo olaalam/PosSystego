@@ -18,7 +18,7 @@ export default function ClearAllManagerModal({
 
   return (
     <div className="fixed inset-0 bg-gray-500/50 flex items-center justify-center z-50">
-      <div className="bg-white p-8 rounded-lg shadow-xl max-w-md w-full mx-4">
+      <div className="bg-white p-8 rounded-lg shadow-xl max-w-md w-[95%] max-h-[90vh] overflow-y-auto mx-auto">
         <h3 className="text-xl font-bold text-purple-700 mb-6">
           {t("ManagerApprovalRequired")}
         </h3>

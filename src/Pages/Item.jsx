@@ -405,11 +405,11 @@ export default function Item({ onAddToOrder }) {
         </div>
       </div>
 
-      {/* 2. الجزء الرئيسي: التصنيفات على اليسار والمنتجات على اليمين */}
-      <div className="flex flex-row gap-6 flex-1 overflow-hidden">
+      {/* 2. الجزء الرئيسي: التصنيفات على اليسار والمنتجات على اليمين / فوق و أسفل في الموبايل */}
+      <div className="flex flex-col md:flex-row gap-4 md:gap-6 flex-1 overflow-hidden">
 
-        {/* قائمة التصنيفات العمودية (Side Menu) */}
-        <div className="w-38 flex-shrink-0 overflow-y-auto pr-2 custom-scrollbar flex flex-col gap-2">
+        {/* قائمة التصنيفات العمودية (Side Menu) / الأفقية في الموبايل */}
+        <div className="w-full md:w-38 flex-shrink-0 overflow-x-auto md:overflow-y-auto pr-2 custom-scrollbar flex flex-row md:flex-col gap-2 pb-2 md:pb-0 items-center md:items-stretch">
 
           {/* 🎁 Bundles button — Pinned at TOP of sidebar */}
           <BundlesSidebarButton
@@ -426,7 +426,7 @@ export default function Item({ onAddToOrder }) {
             <button
               key={cat._id}
               onClick={() => handleCategorySelect(cat._id)}
-              className={`flex flex-col items-center justify-center p-4 rounded-2xl transition-all border-2 min-h-[100px] ${selectedCategory === cat._id
+              className={`flex-shrink-0 flex flex-col items-center justify-center p-2 md:p-4 rounded-xl transition-all border-2 min-w-[80px] md:min-w-0 md:min-h-[100px] ${selectedCategory === cat._id
                 ? "border-purple-600 bg-purple-50 text-purple-700 shadow-md"
                 : "border-gray-100 bg-white text-gray-600 hover:border-purple-200"
                 }`}
@@ -455,14 +455,14 @@ export default function Item({ onAddToOrder }) {
         </div>
 
         {/* Main Grid: Bundles or Products */}
-        <div className="flex-1 overflow-y-auto pb-10 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto pb-10 custom-scrollbar mt-2 md:mt-0">
           {activeTab === "bundles" ? (
             bundlesLoading ? (
               <div className="flex justify-center items-center h-64"><Loading /></div>
             ) : bundles.length === 0 ? (
               <div className="text-center py-20 text-gray-400">{t("NoBundlesFound")}</div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
                 {bundles.map((bundle) => (
                   <BundleGridCard
                     key={bundle._id}
@@ -479,7 +479,7 @@ export default function Item({ onAddToOrder }) {
               <div className="text-center py-20 text-gray-400">{t("NoProductsFound")}</div>
             ) : (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
                   {productsToDisplay.map((product) => (
                     <ProductCard
                       key={product._id}

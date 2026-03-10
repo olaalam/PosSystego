@@ -13,7 +13,7 @@ import {
   LogOut,
   XCircle,
   Languages,
-
+  Menu,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -73,7 +73,7 @@ function CustomerSearchCombobox({ customers, selectedCustomer, onSelect, t }) {
         <Button
           variant="outline"
           role="combobox"
-          className="w-[220px] justify-between h-auto py-1 px-3 text-sm"
+          className="w-full max-w-[130px] sm:max-w-[220px] justify-between h-auto py-1 px-3 text-xs sm:text-sm"
         >
           {selectedCustomerObj
             ? `${selectedCustomerObj.name}${selectedCustomerObj.phone_number
@@ -306,19 +306,20 @@ export default function Navbar() {
   return (
     <>
       {/* الحاوية الرئيسية للخلفية الرمادية الباهتة */}
-      <div className="w-full shadow-md px-4 py-5 md:px-6  z-50 border-b border-gray-100">
-        <div className="flex items-center justify-between gap-4 max-w-[1920px] mx-auto">
+      <div className="w-full shadow-md px-2 py-3 sm:px-4 sm:py-5 md:px-6 z-50 border-b border-gray-100">
+        <div className="flex items-center justify-between gap-1.5 sm:gap-4 max-w-[1920px] mx-auto">
 
           {/* --- الجزء الأيسر: الأزرار والعملاء --- */}
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate(-1)}
-              className="w-12 h-12 flex items-center justify-center bg-white rounded-2xl border border-gray-100 shadow-sm text-gray-400 hover:text-gray-600 transition-all"
+              className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-white rounded-2xl border border-gray-100 shadow-sm text-gray-400 hover:text-gray-600 transition-all flex-shrink-0"
             >
               <span className="text-2xl">←</span>
             </button>
 
-            <div className="bg-white p-1.5 rounded-[28px] border border-gray-100 shadow-sm flex items-center gap-2">
+            {/* --- أزرار التنقل (مخفية في الشاشات الصغيرة جداً وداخل قائمة منسدلة) --- */}
+            <div className="hidden sm:flex bg-white p-1.5 rounded-[28px] border border-gray-100 shadow-sm items-center gap-2 overflow-x-auto max-w-[150px] sm:max-w-none no-scrollbar">
               <Tabs value={currentTab} onValueChange={handleTabChange}>
                 <TabsList className="bg-transparent h-auto gap-2 p-0">
                   <TabsTrigger
@@ -354,15 +355,35 @@ export default function Navbar() {
               </Tabs>
             </div>
 
-
+            {/* --- Hamburger Menu للموبايل --- */}
+            <div className="sm:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="w-12 h-12 flex items-center justify-center bg-white rounded-2xl border border-gray-100 shadow-sm text-gray-600 hover:text-[#7b61ff] transition-all">
+                    <Menu size={24} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48 bg-white rounded-xl shadow-xl border-gray-100 p-2">
+                  <DropdownMenuItem onClick={() => handleTabChange("take_away")} className={`flex px-3 py-3 rounded-lg cursor-pointer ${currentTab === "take_away" ? "bg-[#7b61ff] text-white font-bold" : "hover:bg-gray-50 text-gray-700"}`}>
+                    {t("take_away")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleTabChange("online-order")} className={`flex px-3 py-3 rounded-lg cursor-pointer ${currentTab === "online-order" ? "bg-[#7b61ff] text-white font-bold" : "hover:bg-gray-50 text-gray-700"}`}>
+                    {t("OnlineOrders")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleTabChange("return")} className={`flex px-3 py-3 rounded-lg cursor-pointer ${currentTab === "return" ? "bg-[#7b61ff] text-white font-bold" : "hover:bg-gray-50 text-gray-700"}`}>
+                    {t("Return")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
 
           {/* --- الجزء الأوسط: اللوجو والفاصل --- */}
-          <div className="flex items-center gap-6">
+          <div className="hidden md:flex items-center gap-6">
             <div className="h-10 w-[1.5px] bg-gray-200 hidden lg:block" />
             <img src={logo} alt="Logo" className="h-14 w-auto object-contain" />
           </div>
-          <div className="flex items-center gap-2 ml-2">
+          <div className="flex items-center gap-1 sm:gap-2 ml-auto md:ml-2">
             <CustomerSearchCombobox
               customers={customers}
               selectedCustomer={selectedCustomer}
@@ -374,15 +395,15 @@ export default function Navbar() {
             />
             <button
               onClick={() => setShowCustomerModal(true)}
-              className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white border border-gray-100 text-[#7b61ff] shadow-sm hover:bg-gray-50 transition-all"
+              className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-2xl bg-white border border-gray-100 text-[#7b61ff] shadow-sm hover:bg-gray-50 transition-all flex-shrink-0"
             >
               <span className="text-2xl font-light">+</span>
             </button>
           </div>
           {/* --- الجزء الأيمن: العداد والقائمة المنسدلة للمستخدم --- */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
 
-            <div className="bg-white px-5 py-2 rounded-[22px] border border-gray-100 shadow-sm flex flex-col items-center min-w-[120px]">
+            <div className="hidden sm:flex bg-white px-5 py-2 rounded-[22px] border border-gray-100 shadow-sm flex-col items-center min-w-[120px]">
               <div className="flex items-center gap-1.5 mb-0.5">
                 <span className="text-gray-400 text-xs">🕒</span>
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{t("shift")}</span>
@@ -392,14 +413,14 @@ export default function Navbar() {
               </span>
             </div>
 
-            <div className="w-12 h-12 flex items-center justify-center bg-white rounded-2xl border border-gray-100 shadow-sm text-gray-400">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-white rounded-2xl border border-gray-100 shadow-sm text-gray-400 flex-shrink-0">
               <Notifications />
             </div>
 
             {/* 🚀 القائمة المنسدلة للمستخدم (مطابقة تماماً للصورة) */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex flex-col items-center justify-center w-14 h-14 bg-white rounded-2xl border border-gray-100 shadow-sm group outline-none hover:border-[#7b61ff] transition-all">
+                <button className="flex flex-col items-center justify-center w-11 h-11 sm:w-14 sm:h-14 bg-white rounded-2xl border border-gray-100 shadow-sm group outline-none hover:border-[#7b61ff] transition-all flex-shrink-0">
                   <div className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 group-hover:text-[#7b61ff] group-hover:border-[#7b61ff] transition-all">
                     <User className="w-5 h-5" />
                   </div>

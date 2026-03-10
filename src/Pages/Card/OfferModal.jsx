@@ -19,7 +19,7 @@ export default function OfferModal({
   if (isOpen && !pendingApproval) {
     return (
       <div className="fixed inset-0 bg-gray-500/50 flex items-center justify-center z-50">
-        <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
+        <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-[95%] max-h-[90vh] overflow-y-auto mx-auto">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             {t("ApplyOfferUsePoints")}
           </h3>
@@ -60,7 +60,7 @@ export default function OfferModal({
   if (pendingApproval) {
     return (
       <div className="fixed inset-0 bg-gray-500/50 flex items-center justify-center z-50">
-        <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
+        <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-[95%] max-h-[90vh] overflow-y-auto mx-auto">
           <h3 className="text-lg font-semibold text-bg-primary mb-4">
             {t("ConfirmRewardPurchase")}
           </h3>

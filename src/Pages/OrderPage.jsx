@@ -236,8 +236,8 @@ export default function OrderPage({
   console.log("🎯 OrderPage Order Type:", currentOrderType);
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 p-4 w-full h-screen " dir={isArabic ? "rtl" : "ltr"}>
-      <div className="w-full lg:w-[70%] h-full overflow-hidden">
+    <div className="flex flex-col lg:flex-row gap-4 p-4 w-full min-h-screen lg:h-screen" dir={isArabic ? "rtl" : "ltr"}>
+      <div className="w-full lg:w-[70%] h-[60vh] lg:h-full overflow-hidden">
         <Item
           onAddToOrder={handleAddItem}
           fetchEndpoint={fetchEndpoint}
@@ -246,7 +246,7 @@ export default function OrderPage({
           orderItems={currentOrderItems}
         />
       </div>
-      <div className="w-full lg:w-[30%] h-full overflow-y-auto">
+      <div className="w-full lg:w-[30%] h-[80vh] lg:h-full overflow-y-auto">
         <Card
           key={refreshTrigger}
           orderItems={currentOrderItems}

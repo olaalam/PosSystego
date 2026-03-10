@@ -18,7 +18,7 @@ const VoidItemModal = ({
   managerPassword,
   setManagerPassword,
   confirmVoidItem,
-  onManagerIdChange,  
+  onManagerIdChange,
   isLoading,
 }) => {
   const handleManagerIdBlur = async () => {
@@ -37,18 +37,18 @@ const VoidItemModal = ({
     setManagerPassword("");
     onOpenChange(false);
   };
-     const { t  } = useTranslation();
+  const { t } = useTranslation();
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent>
+      <DialogContent className="w-[95%] sm:max-w-md rounded-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 mx-auto">
         <DialogHeader>
           <DialogTitle>{t("VoidItemManagerAuthentication")}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
             <label htmlFor="managerId" className="text-right font-medium">
-{t("ManagerID")}            </label>
+              {t("ManagerID")}            </label>
             <Input
               type="text"
               inputMode="numeric"

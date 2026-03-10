@@ -748,7 +748,7 @@ const CheckOut = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-2 sm:p-4">
       <CustomerSelectionModal
         isOpen={customerSelectionOpen}
         onClose={() => setCustomerSelectionOpen(false)}
@@ -760,7 +760,7 @@ const CheckOut = ({
         requiredTotal={requiredTotal}
       />
 
-      <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+      <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden max-h-[95vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-3">
           <h2 className="text-2xl font-semibold text-gray-800">{t("Checkout") || "Checkout"}</h2>
@@ -772,10 +772,10 @@ const CheckOut = ({
           </button>
         </div>
 
-        <div className="px-6 pb-6 overflow-y-auto max-h-[calc(90vh-5rem)]">
+        <div className="px-4 sm:px-6 pb-6 overflow-y-auto flex-1">
 
           {/* Payment Method Cards - Row 1 */}
-          <div className="grid grid-cols-3 gap-3 mb-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 mb-3">
             {mainAccounts.map((acc) => (
               <button
                 key={acc._id}
@@ -793,7 +793,7 @@ const CheckOut = ({
           </div>
 
           {/* Payment Method Cards - Row 2: extra accounts + Due + Split */}
-          <div className="grid grid-cols-3 gap-3 mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 mb-4">
             {extraAccounts.map((acc) => (
               <button
                 key={acc._id}
@@ -843,7 +843,7 @@ const CheckOut = ({
               {paymentSplits.map((split, idx) => (
                 <div key={split._id} className="flex items-center gap-2">
                   <span className="text-xs text-gray-500 w-5">#{idx + 1}</span>
-                  <div className="w-32">
+                  <div className="flex-1 min-w-0">
                     <select
                       value={String(split.account_id)}
                       onChange={(e) => handleAccountChange(split._id, e.target.value)}

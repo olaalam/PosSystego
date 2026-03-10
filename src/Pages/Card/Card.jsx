@@ -288,7 +288,7 @@ export default function Card({
       )}
 
       {/* Order Table */}
-      <div className="flex-1 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+      <div className="overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         {apiLoading && (
           <div className="flex justify-center items-center h-40">
             <Loading />

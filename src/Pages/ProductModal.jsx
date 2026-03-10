@@ -245,7 +245,7 @@ const ProductModal = ({
         onClose();
       }}
     >
-      <DialogContent className="w-[90vw] !max-w-[500px] p-0 rounded-2xl shadow-2xl overflow-y-auto max-h-[90vh] scrollbar-width-none [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+      <DialogContent className="w-[95%] sm:max-w-[500px] p-0 rounded-2xl shadow-2xl overflow-y-auto max-h-[95vh] scrollbar-width-none [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         <div className="flex flex-col">
           <div className="relative">
             <img

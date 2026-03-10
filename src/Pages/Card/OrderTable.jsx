@@ -20,8 +20,8 @@ export default function OrderTable({
   t,
 }) {
   return (
-    <div className="bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm">
-      <table className="w-full text-sm">
+    <div className="bg-white rounded-xl overflow-x-auto border border-gray-100 shadow-sm">
+      <table className="w-full text-sm min-w-[600px] md:min-w-full">
         {/* Table Header */}
         <thead>
           <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
