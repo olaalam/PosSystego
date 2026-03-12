@@ -29,7 +29,7 @@ export default function ExpensesModal({ onClose, expense = null, refetchParent }
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [financial_accountId, setFinancialAccountId] = useState("");
-
+  const [isSubmitting, setIsSubmitting] = useState(false);
   // -----------------------------
   // Load EDIT DATA from API
   // -----------------------------
@@ -54,15 +54,13 @@ export default function ExpensesModal({ onClose, expense = null, refetchParent }
   // SUBMIT
   // -----------------------------
   const handleSubmit = async () => {
-    if (!expense_name || !Category_id || !amount) {
+    if (!expense_name || !Category_id || !amount || !financial_accountId) {
       toast.error(t("Pleasefillrequiredfields"));
       return;
     }
 
-    if (!financial_accountId) {
-      toast.error(t("Pleaseselectfinancialaccount"));
-      return;
-    }
+    // 1. ابدأ التحميل ومنع الزرار
+    setIsSubmitting(true);
 
     const body = {
       name: expense_name,
@@ -80,15 +78,15 @@ export default function ExpensesModal({ onClose, expense = null, refetchParent }
       } else {
         await postData("api/admin/expense", body);
         toast.success(t("ExpenseAdded"));
+        refetchParent?.(); // أضيفي الريكول هنا أيضاً إذا كنتِ تحتاجي تحديث القائمة بعد الإضافة
       }
-
       onClose();
     } catch (err) {
-      const message =
-        err?.response?.data?.errors ||
-        err?.message ||
-        "Failed to save expense";
+      const message = err?.response?.data?.errors || err?.message || "Failed to save expense";
       toast.error(message);
+    } finally {
+      // 2. فك الحظر عن الزرار سواء نجح أو فشل الطلب
+      setIsSubmitting(false);
     }
   };
 
@@ -167,9 +165,18 @@ export default function ExpensesModal({ onClose, expense = null, refetchParent }
 
         <button
           onClick={handleSubmit}
-          className="w-full py-3 bg-bg-primary text-white rounded mt-2"
+          disabled={isSubmitting} // تعطيل الزرار هنا
+          className={`w-full py-3 text-white rounded mt-2 ${isSubmitting ? "bg-gray-400 cursor-not-allowed" : "bg-bg-primary"
+            }`}
         >
-          {isEditMode ? t("Update") : t("Add")}
+          {isSubmitting ? (
+            <span className="flex items-center justify-center gap-2">
+              {/* اختياري: يمكنك وضع Spinner صغير هنا */}
+              {t("Loading...")}
+            </span>
+          ) : (
+            isEditMode ? t("Update") : t("Add")
+          )}
         </button>
       </div>
     </div>
