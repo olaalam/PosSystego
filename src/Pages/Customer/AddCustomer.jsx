@@ -38,7 +38,8 @@ export default function AddCustomer({ onClose }) {
       toast.success("Customer Added Successfully");
       onClose();
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Error adding customer");
+      console.error("Error adding customer:", err);
+      toast.error(err?.response?.data?.error?.message || "Error adding customer");
     }
   };
 
