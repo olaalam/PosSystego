@@ -86,12 +86,14 @@ export function useOrderCalculations(
     // 3. Service Fee (dine_in و take_away فقط)
     const serviceFeeAmount = serviceFeeData?.amount ?? 0;
     const serviceFeeType = serviceFeeData?.type ?? "precentage";
+    // يقبل كلا الشكلين: "precentage" (خطأ إملائي قديم) و "percentage" (الصحيح)
+    const isPercentage = serviceFeeType !== "fixed";
     const applyServiceFee =
       ["dine_in", "take_away"].includes(orderType) && serviceFeeAmount > 0;
 
     let serviceChargeFull = 0;
     if (applyServiceFee) {
-      if (serviceFeeType === "precentage") {
+      if (isPercentage) {
         serviceChargeFull = (subTotal + order_tax) * (serviceFeeAmount / 100);
       } else {
         serviceChargeFull = serviceFeeAmount; // مبلغ ثابت
@@ -129,7 +131,7 @@ export function useOrderCalculations(
 
       let selectedServiceCharge = 0;
       if (applyServiceFee) {
-        if (serviceFeeType === "precentage") {
+        if (isPercentage) {
           selectedServiceCharge =
             (selectedSubTotal + selectedTax) * (serviceFeeAmount / 100);
         } else {

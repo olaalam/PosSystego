@@ -649,7 +649,9 @@ export default function OrderSummary({
 
         {["dine_in", "take_away"].includes(orderType) && totalOtherCharge > 0 && (
           <SummaryRow
-            label={`${t("Service Fee")} (${serviceFeeData?.amount || 0}%)`}
+            label={`${t("Service Fee")} (${serviceFeeData?.amount || 0}${
+              serviceFeeData?.type === "fixed" ? " EGP" : "%"
+            })`}
             value={totalOtherCharge}
           />
         )}
