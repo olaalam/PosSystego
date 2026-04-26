@@ -69,25 +69,25 @@ export default function Shift() {
     }
   };
 
-  // ✅ غلق الشيفت (GET)
+  // ✅ غلق الشيفت
   const handleCloseShiftAction = async () => {
-    const endpoint = `${import.meta.env.VITE_API_BASE_URL}api/admin/cashier-shift/end`;
+    const cashierIdForClose = sessionStorage.getItem("cashier_id");
+    const endpoint = `${import.meta.env.VITE_API_BASE_URL}api/admin/cashier-shift/close/${cashierIdForClose}`;
 
     try {
       setLoading(true);
       const token = sessionStorage.getItem("token");
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-      // ✅ هنا GET لغلق الشيفت
-      await axios.get(endpoint, { headers });
+      await axios.post(endpoint, {}, { headers });
 
       // ✅ تحديث الـ context
       closeShift();
-      
+
       // ✅ مسح البيانات من sessionStorage
       sessionStorage.removeItem("shift_start_time");
       sessionStorage.removeItem("shift_data");
-      
+
       setShiftStatus("Shift is closed.");
       toast.success(t("ShiftClosedSuccessfully"));
 

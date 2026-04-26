@@ -52,6 +52,7 @@ import PasswordConfirmModal from "@/Pages/PasswordConfirmModal";
 import EndShiftReportModal from "@/Pages/ReportsAfterShift";
 import Notifications from "@/components/Notifications";
 import { useGet } from "@/Hooks/useGet";
+import { usePosSelections } from "@/Hooks/usePosSelections";
 import AddCustomer from "@/Pages/Customer/AddCustomer";
 import logo from "@/assets/logo.png";
 import { FaListAlt, FaUsers } from "react-icons/fa";
@@ -160,9 +161,8 @@ export default function Navbar() {
   const currentTab = sessionStorage.getItem("tab") || "take_away";
   const isArabic = i18n.language === "ar";
 
-  // ✅ تصحيح مسار استخراج العملاء
-  const { data: selections } = useGet("api/admin/pos-home/selections");
-  const customers = selections?.data?.customers || [];
+  // ✅ جلب العملاء من الـ endpoint المخصص
+  const { customers } = usePosSelections();
 
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(
@@ -247,12 +247,12 @@ export default function Navbar() {
         }
       );
 
+
       // الـ API دي لازم ترجع التقرير جاهز
-      setEndShiftReport(response.data); // response.data يحتوي على reportData
+      setEndShiftReport(response.data);
       setShowReportModal(true);
     } catch (err) {
-      const msg =
-        err.response?.data?.message || t("Invalid password or error occurred");
+      const msg = err.response?.data?.message || t("Invalid password or error occurred");
       toast.error(msg);
     } finally {
       setReportLoading(false);
@@ -260,34 +260,25 @@ export default function Navbar() {
   };
 
   const handleClose = async () => {
-    // ⚠️ ملاحظة: تم إزالة setLoading(true) / setLoading(false) لأن usePut يديرها داخلياً.
-
     try {
-      const endpoint = `api/admin/cashier-shift/end`;
-
-      // ✅ استدعاء API لقفل الـ shift باستخدام putData
+      const cashierIdForClose = sessionStorage.getItem("cashier_id");
+      const endpoint = `api/admin/cashier-shift/close/${cashierIdForClose}`;
       await putData(endpoint, {});
 
-      // ✅ تحديث الـ context
       closeShift();
-
-      // ✅ مسح بيانات الـ shift من sessionStorage
       sessionStorage.removeItem("shift_start_time");
       sessionStorage.removeItem("shift_data");
       sessionStorage.clear();
 
-      // ✅ عرض رسالة النجاح
       toast.success(t("ShiftClosedSuccessfully"));
-
-      // ✅ الانتقال لصفحة تسجيل الدخول
       navigate("/login");
     } catch (err) {
-      // 🛑 معالجة الأخطاء - الـ Hook يرمي الخطأ (throw err)
       console.error("Close shift error:", err);
-      // نعرض رسالة الخطأ للمستخدم
       toast.error(err?.response?.data?.message || t("FailedToCloseShift"));
     }
   };
+
+
 
 
   const handleLogout = async () => {

@@ -1,7 +1,7 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { usePost } from "@/Hooks/usePost";
 import { useGet } from "@/Hooks/useGet";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueries } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import Loading from "@/components/Loading";
 import { toast } from "react-toastify";
@@ -38,6 +38,8 @@ export default function Item({ onAddToOrder }) {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedBrand, setSelectedBrand] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
   const [visibleProductCount, setVisibleProductCount] = useState(PRODUCTS_TO_SHOW_INITIALLY);
   const [selectedBundle, setSelectedBundle] = useState(null); // for bundle detail modal
   const { t, i18n } = useTranslation();
@@ -60,6 +62,14 @@ export default function Item({ onAddToOrder }) {
     setQuantity,
     handleExtraDecrement,
   } = useProductModal();
+
+  // ✅ Debounce: نستنى 300ms بعد ما اليوزر يوقف الكتابة قبل ما نبعت الـ API
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // ✅ 1. جلب Categories
   const { data: categoriesData, isLoading: categoriesLoading } = useQuery({
@@ -107,6 +117,35 @@ export default function Item({ onAddToOrder }) {
     return categoryProductsData?.data?.products || [];
   }, [categoryProductsData]);
 
+  // ✅ 4b. Global Search — نجيب منتجات كل الـ categories بالـ parallel
+  //     وندمجهم ف list واحدة للفلترة على الفرونت
+  const globalSearchActive =
+    activeTab === "category" && selectedCategory === "all" && debouncedSearch.length > 0;
+
+  const categoryQueries = useQueries({
+    queries: categories.map((cat) => ({
+      queryKey: ["categoryProducts", cat._id],
+      queryFn: () => apiFetcher(`api/admin/pos-home/categories/${cat._id}/products`),
+      staleTime: 10 * 60 * 1000, // cache 10 دقايق
+      enabled: globalSearchActive && categories.length > 0,
+    })),
+  });
+
+  const allProductsLoading = categoryQueries.some((q) => q.isLoading);
+
+  // دمج وتخليص من التكرار
+  const allProducts = useMemo(() => {
+    const seen = new Set();
+    return categoryQueries
+      .flatMap((q) => q.data?.data?.products || [])
+      .filter((p) => {
+        if (seen.has(p._id)) return false;
+        seen.add(p._id);
+        return true;
+      });
+  }, [categoryQueries]);
+
+
   // ✅ 5. جلب Products حسب Brand
   const { data: brandProductsData, isLoading: brandProductsLoading } = useQuery({
     queryKey: ["brandProducts", selectedBrand],
@@ -134,26 +173,33 @@ export default function Item({ onAddToOrder }) {
       return selectedBrand === "all" ? [] : brandProducts;
     }
     if (activeTab === "category") {
+      // لو فيه بحث و مفيش category مختارة → نستخدم كل المنتجات
+      if (globalSearchActive) return allProducts;
       return selectedCategory === "all" ? [] : categoryProducts;
     }
     return [];
-  }, [activeTab, featuredProducts, brandProducts, categoryProducts, selectedBrand, selectedCategory]);
+  }, [activeTab, featuredProducts, brandProducts, categoryProducts, selectedBrand, selectedCategory, globalSearchActive, allProducts]);
 
-  // ✅ 7. فلترة المنتجات حسب البحث
+
+  // ✅ 8. فلترة المنتجات حسب البحث على الفرونت
   const filteredProducts = useMemo(() => {
     let products = productsSource;
-    const query = searchQuery.trim().toLowerCase();
+    const query = debouncedSearch.toLowerCase();
 
+    // لو فيه query → نفلتر محلياً سواء global search أو category مختارة
     if (query) {
       products = products.filter((p) => {
-        const name = p.name?.toLowerCase() || "";
-        const code = p.product_code?.toString().toLowerCase() || "";
-        return name.includes(query) || code.includes(query);
+        const name = (p.name || "").toLowerCase();
+        const nameAr = (p.ar_name || p.name_ar || "").toLowerCase();
+        const code = (p.product_code || "").toString().toLowerCase();
+        return name.includes(query) || nameAr.includes(query) || code.includes(query);
       });
     }
 
     return products;
-  }, [productsSource, searchQuery]);
+  }, [productsSource, debouncedSearch]);
+
+
 
   const productsToDisplay = filteredProducts.slice(0, visibleProductCount);
 
@@ -352,7 +398,7 @@ export default function Item({ onAddToOrder }) {
     handleAddToOrder(enhancedProduct, enhancedProduct.quantity, options);
   };
 
-  const isAnyLoading = categoriesLoading || brandsLoading || categoryProductsLoading || brandProductsLoading || featuredLoading;
+  const isAnyLoading = categoriesLoading || brandsLoading || categoryProductsLoading || brandProductsLoading || featuredLoading || allProductsLoading;
   const isArabic = i18n.language === "ar";
 
   if (isAnyLoading && !categories.length) {

@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useGet } from "@/Hooks/useGet";
+import { usePosSelections } from "@/Hooks/usePosSelections";
 import { usePost } from "@/Hooks/usePost";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -176,20 +177,19 @@ const CheckOut = ({
 
   const {
     data: dueUsersData,
-    loading: customerSearchLoading,
+    isLoading: customerSearchLoading,
     refetch: refetchDueUsers,
-  } = useGet(`api/admin/pos-home/selections`);
+  } = useGet("api/admin/pos-home/due-customers");
 
   const searchResults = useMemo(() => {
-    // التغيير الوحيد: dueCustomers بدل users
-    const customers = dueUsersData?.data?.dueCustomers || [];
-
+    // استخرج الـ array من الشكل الجديد: { success, data: { message, data: [...] } }
+    const customers = dueUsersData?.data?.data || dueUsersData?.data?.dueCustomers || [];
     return customers.filter((c) =>
       c.name?.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
       c.phone_number?.includes(customerSearchQuery)
-      // لو في phone_2 ممكن تضيفه هنا لو موجود في الـ API
     );
   }, [dueUsersData, customerSearchQuery]);
+
 
   const { selectedDiscountAmount, finalSelectedDiscountId } = useMemo(() => {
     const discountList = discountListData?.data?.discounts || [];

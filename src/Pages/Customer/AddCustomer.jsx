@@ -1,13 +1,12 @@
 import React, { useState } from "react";
 import { usePost } from "@/Hooks/usePost";
-import { useGet } from "@/Hooks/useGet";
+import { usePosSelections } from "@/Hooks/usePosSelections";
 import { toast } from "react-toastify";
 
 export default function AddCustomer({ onClose }) {
   const { postData, loading } = usePost();
-  const { data: selections } = useGet("api/admin/pos-home/selections");
+  const { countries, customerGroups } = usePosSelections();
 
-  const countries = selections?.data?.countries || [];
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -26,7 +25,6 @@ export default function AddCustomer({ onClose }) {
   const cities = selectedCountry?.cities || [];
   // -------------------
 
-  const customerGroups = selections?.data?.customerGroups || [];
 
 
   const handleChange = (e) =>
