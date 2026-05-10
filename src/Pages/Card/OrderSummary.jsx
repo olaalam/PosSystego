@@ -478,7 +478,7 @@ function CheckoutDiscountPanel({
                 <option value="0">{t("NoDiscount") || "No Discount"}</option>
                 {discountList.map((d) => (
                   <option key={d._id} value={d._id}>
-                    {d.name} ({d.amount}{d.type === "percentage" ? "%" : " EGP"})
+                    {d.name} ({d.type === "percentage" ? (d.amount * 100) : d.amount}{d.type === "percentage" ? "%" : " EGP"})
                   </option>
                 ))}
               </select>
@@ -649,9 +649,8 @@ export default function OrderSummary({
 
         {["dine_in", "take_away"].includes(orderType) && totalOtherCharge > 0 && (
           <SummaryRow
-            label={`${t("Service Fee")} (${serviceFeeData?.amount || 0}${
-              serviceFeeData?.type === "fixed" ? " EGP" : "%"
-            })`}
+            label={`${t("Service Fee")} (${serviceFeeData?.amount || 0}${serviceFeeData?.type === "fixed" ? " EGP" : "%"
+              })`}
             value={totalOtherCharge}
           />
         )}
