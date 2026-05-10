@@ -6,6 +6,7 @@ import { Phone, CreditCard, PrinterIcon, ChevronDown, ChevronRight, Tag } from "
 import { useGet } from "@/Hooks/useGet";
 import { usePost } from "@/Hooks/usePost";
 import { toast } from "react-toastify";
+import { useDiscountCalculation } from "@/Hooks/useDiscountCalculation";
 
 // مكون الطباعة بنفس ديزاين الكاشير ريسيبت
 const PrintableOrder = React.forwardRef(({ orderItems, calculations, orderType, tableId, t, restaurantInfo }, ref) => {
@@ -558,6 +559,10 @@ export default function OrderSummary({
   onSetDiscountId,
   onSetAppliedDiscount,
   onSetDiscountCode,
+  // discount preview props
+  presetDiscountId,
+  presetAppliedDiscount,
+  presetFreeDiscount,
 }) {
   const printRef = useRef();
 
@@ -609,6 +614,14 @@ export default function OrderSummary({
     amountToPay,
   };
 
+  // ──── حساب الخصم باستخدام الـ shared hook (نفس منطق CheckOut) ────
+  const { totalDiscountDisplay, finalAmountToPay } = useDiscountCalculation(
+    amountToPay,
+    presetDiscountId,
+    presetAppliedDiscount,
+    presetFreeDiscount
+  );
+
   const restaurantInfo = {
     name: sessionStorage.getItem('resturant_name') || 'Restaurant Name',
     address: sessionStorage.getItem('restaurant_address') || 'Restaurant Address',
@@ -655,6 +668,14 @@ export default function OrderSummary({
           />
         )}
 
+        {/* ── Discount List Row ── */}
+        {totalDiscountDisplay > 0 && (
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-blue-600 font-medium">{t("ListDiscount") || "ListDiscount"}</span>
+            <span className="text-blue-600 font-semibold">-{totalDiscountDisplay.toFixed(2)} {t("EGP")}</span>
+          </div>
+        )}
+
         {/* Dine-in Selection Info */}
         {orderType === "dine_in" && (
           <>
@@ -676,7 +697,7 @@ export default function OrderSummary({
       <div className="text-black rounded-xl px-4 py-3 mb-3 flex justify-between items-center shadow-sm">
         <span className="text-black/80 text-sm font-medium">{t("AmountToPay")}</span>
         <span className="text-black text-xl font-bold tracking-tight">
-          {amountToPay.toFixed(2)} <span className="text-sm font-normal opacity-80">{t("EGP")}</span>
+          {finalAmountToPay.toFixed(2)} <span className="text-sm font-normal opacity-80">{t("EGP")}</span>
         </span>
       </div>
 

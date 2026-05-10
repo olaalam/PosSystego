@@ -383,6 +383,9 @@ export default function Card({
         onSetDiscountId={setPresetDiscountId}
         onSetAppliedDiscount={setPresetAppliedDiscount}
         onSetDiscountCode={setPresetDiscountCode}
+        presetDiscountId={presetDiscountId}
+        presetAppliedDiscount={presetAppliedDiscount}
+        presetFreeDiscount={presetFreeDiscount}
       />
 
       {/* Modals */}

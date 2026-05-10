@@ -30,6 +30,7 @@ import {
 } from "../utils/printReceipt";
 import { useTranslation } from "react-i18next";
 import FreeDiscountPasswordModal from "./FreeDiscountPasswordModal";
+import { useDiscountCalculation } from "@/Hooks/useDiscountCalculation";
 
 const CheckOut = ({
   amountToPay,
@@ -70,9 +71,7 @@ const CheckOut = ({
     return selectedGroup?.Due === 1;
   })();
 
-  const { data: discountListData, loading: discountsLoading } =
-    useGet("api/admin/discount");
-  const { data: taxesData, loading: taxesLoading } = useGet("api/admin/taxes");
+  const { data: taxesData } = useGet("api/admin/taxes");
   const [selectedDiscountId, setSelectedDiscountId] = useState(initialDiscountId);
   const [selectedTaxId, setSelectedTaxId] = useState(null);
   const [freeDiscount, setFreeDiscount] = useState(initialFreeDiscount);
@@ -191,60 +190,22 @@ const CheckOut = ({
   }, [dueUsersData, customerSearchQuery]);
 
 
-  const { selectedDiscountAmount, finalSelectedDiscountId } = useMemo(() => {
-    const discountList = discountListData?.data?.discounts || [];
-    const selectedDiscount = discountList.find(
-      (d) => d._id === selectedDiscountId
-    );
-
-    if (!selectedDiscount) {
-      return { selectedDiscountAmount: 0, finalSelectedDiscountId: null };
-    }
-
-    let discountValue = 0;
-    if (selectedDiscount.type === "percentage") {
-      let rate = selectedDiscount.amount;
-
-      // لو القيمة أقل من 1 → نفترض إنها نسبة مئوية مكتوبة غلط (0.1 بدل 10)
-      if (rate < 1 && rate > 0) {
-        rate *= 100;  // 0.1 → 10
-      }
-
-      discountValue = amountToPay * (rate / 100);
-    } else if (selectedDiscount.type === "value") {
-      discountValue = selectedDiscount.amount;
-    }
-
-    return {
-      selectedDiscountAmount: discountValue,
-      finalSelectedDiscountId: selectedDiscount._id,
-    };
-  }, [discountListData, selectedDiscountId, amountToPay]);
+  // ──── حساب الخصم من الـ shared hook ────
+  const {
+    totalDiscountDisplay: totalDiscountValue,
+    finalAmountToPay: discountedAmount,
+  } = useDiscountCalculation(
+    amountToPay,
+    selectedDiscountId,
+    appliedDiscount,
+    freeDiscount
+  );
+  // taxableAmount = discountedAmount (المبلغ بعد كل الخصومات)
+  const taxableAmount = discountedAmount;
 
   const [isDueOrder, setIsDueOrder] = useState(false);
   const [discountError, setDiscountError] = useState(null);
   const [isCheckingDiscount, setIsCheckingDiscount] = useState(false);
-
-  const discountedAmount = useMemo(() => {
-    let totalDiscountValue = 0;
-
-    // 1. لو فيه كود خصم مطبق (appliedDiscount هنا شايلة نسبة)
-    if (appliedDiscount > 0) {
-      totalDiscountValue = amountToPay * (appliedDiscount / 100);
-    }
-    // 2. لو مفيش كود، بنشوف لو مختار خصم من القائمة
-    else if (selectedDiscountAmount > 0) {
-      totalDiscountValue = selectedDiscountAmount;
-    }
-
-    const afterDiscount = amountToPay - totalDiscountValue;
-    const freeDiscountValue = parseFloat(freeDiscount) || 0;
-
-    return Math.max(0, afterDiscount - freeDiscountValue);
-  }, [amountToPay, appliedDiscount, selectedDiscountAmount, freeDiscount]);
-  const taxableAmount = useMemo(() => {
-    return discountedAmount;   // ← المبلغ بعد كل الخصومات (كود + list + free)
-  }, [discountedAmount]);
   const selectedTaxAmount = useMemo(() => {
     if (!selectedTaxId || !taxesData?.data?.taxes) return 0;
 
@@ -951,7 +912,7 @@ const CheckOut = ({
           )}
 
           {/* Summary: discounts + amounts info */}
-          {(appliedDiscount > 0 || selectedDiscountAmount > 0 || (freeDiscount && parseFloat(freeDiscount) > 0)) && (
+          {totalDiscountValue > 0 && (
             <div className="mb-3 p-3 bg-gray-50 border border-gray-100 rounded-xl text-sm space-y-1">
               {appliedDiscount > 0 && (
                 <div className="flex justify-between">
@@ -959,10 +920,10 @@ const CheckOut = ({
                   <span className="text-red-500">-{(amountToPay * (appliedDiscount / 100)).toFixed(2)} {t("EGP")}</span>
                 </div>
               )}
-              {selectedDiscountAmount > 0 && appliedDiscount === 0 && (
+              {appliedDiscount === 0 && totalDiscountValue > (parseFloat(freeDiscount) || 0) && (
                 <div className="flex justify-between text-blue-600">
                   <span>{t("ListDiscount")}</span>
-                  <span>-{selectedDiscountAmount.toFixed(2)} {t("EGP")}</span>
+                  <span>-{(totalDiscountValue - (parseFloat(freeDiscount) || 0)).toFixed(2)} {t("EGP")}</span>
                 </div>
               )}
               {freeDiscount && parseFloat(freeDiscount) > 0 && (
