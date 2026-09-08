@@ -3,12 +3,13 @@ import { Button } from "@/components/ui/button";
 import { User } from "lucide-react";
 import { useGet } from "@/Hooks/useGet";
 import Loading from "@/components/Loading";
-import {  toast } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { usePost } from "@/Hooks/usePost";
 import logo from "@/assets/logo.png";
+import { useShift } from "@/context/ShiftContext";
 
 export function CashierButton({
   cashierId,
@@ -43,41 +44,111 @@ export function CashierButton({
 }
 
 export default function Cashier() {
-    const { t, i18n } = useTranslation()
-    const isArabic = i18n.language === "ar";
+  const { t, i18n } = useTranslation();
+  const isArabic = i18n.language === "ar";
+  const { openShift } = useShift();
 
   const { data, error, isLoading, refetch } = useGet(`api/admin/pos-home/cashiers`);
   const [selectedCashierId, setSelectedCashierId] = useState(null);
-  const [showHidden, setShowHidden] = useState(false); // state للتحكم بالـ hidden cashiers
+  const [showHidden, setShowHidden] = useState(false);
   const { postData, loading: postLoading, error: postError } = usePost();
   const navigate = useNavigate();
 
+  // إذا وجد كاشير مفعل بالفعل في الجلسة أو شيفت مفتوح في السيرفر، يتم التحويل مباشرة للـ POS
   useEffect(() => {
-    if (postError) {
-      toast.error(
-        `Failed to activate cashier: ${postError.message || "Unknown error"}`
-      );
-    } else if (postLoading === false && selectedCashierId !== null) {
-      toast.success(`Cashier ${selectedCashierId} activated successfully!`);
-      refetch();
-      setSelectedCashierId(null);
+    const existingCashierId = sessionStorage.getItem("cashier_id");
+    if (existingCashierId) {
+      navigate("/", { replace: true });
+      return;
     }
-  }, [postError, postLoading, selectedCashierId, refetch]);
+
+    // فحص تلقائي احتياطي: لو للمستخدم شيفت مفتوح، يتم استرجاعه فوراً وتخطي شاشة الكاشير
+    const autoRestoreExistingShift = async () => {
+      try {
+        const startCheck = await postData("api/admin/cashier-shift/start", {});
+        if (startCheck?.data?.isExisting && startCheck?.data?.shift) {
+          const shift = startCheck.data.shift;
+          const cashier = startCheck.data.cashier;
+          const cashierId = cashier?._id || shift.cashier_id;
+          const cashierName = cashier?.name || cashier?.ar_name || `POS ${cashierId}`;
+
+          sessionStorage.setItem("cashier_id", cashierId);
+          sessionStorage.setItem("cashier_name", cashierName);
+          sessionStorage.setItem("shift_id", shift._id);
+          sessionStorage.setItem("shift_start_time", shift.start_time);
+          sessionStorage.setItem("shift_data", JSON.stringify(shift));
+
+          if (startCheck.data.financialAccounts?.length > 0) {
+            sessionStorage.setItem(
+              "financial_accounts",
+              JSON.stringify(startCheck.data.financialAccounts)
+            );
+          }
+
+          openShift(shift.start_time);
+
+          navigate("/", {
+            replace: true,
+            state: {
+              showWelcomeBackModal: true,
+              cashierName,
+              shiftStartTime: shift.start_time,
+            },
+          });
+        }
+      } catch (e) {
+        // لا يوجد شيفت مفتوح، يظل المستخدم في صفحة اختيار الكاشير
+      }
+    };
+
+    autoRestoreExistingShift();
+  }, [navigate, openShift]);
 
   const handleCashierSelection = async (_id) => {
     setSelectedCashierId(_id);
-    sessionStorage.setItem("cashier_id", _id);
 
     try {
-const response = await postData(`api/admin/pos-home/cashiers/select`, {cashier_id: _id}); 
-// استخدم نفس الـ key في كل مكان
-sessionStorage.setItem("financial_accounts", JSON.stringify(response?.data?.financialAccounts || []));
-     navigate("/shift?action=open");
+      // 1. تفعيل واختيار الكاشير لجلب الحسابات المالية والبيانات
+      const response = await postData(`api/admin/pos-home/cashiers/select`, { cashier_id: _id });
+      const accounts = response?.data?.financialAccounts || [];
+      const cashierDoc = response?.data?.cashier;
+      const cashierName = cashierDoc?.name || cashierDoc?.ar_name || `POS ${_id}`;
+
+      // 2. بدء الشيفت
+      const startRes = await postData(`api/admin/cashier-shift/start`, { cashier_id: _id });
+      const shiftData = startRes?.data?.shift;
+      const shiftStartTime = shiftData?.start_time || new Date().toISOString();
+      const isExisting = !!startRes?.data?.isExisting;
+
+      // 3. حفظ بيانات الجلسة في sessionStorage
+      sessionStorage.setItem("cashier_id", _id);
+      sessionStorage.setItem("cashier_name", cashierName);
+      sessionStorage.setItem("financial_accounts", JSON.stringify(accounts));
+      if (shiftData) {
+        sessionStorage.setItem("shift_id", shiftData._id);
+        sessionStorage.setItem("shift_start_time", shiftStartTime);
+        sessionStorage.setItem("shift_data", JSON.stringify(shiftData));
+      }
+
+      // 4. تحديث الـ ShiftContext
+      openShift(shiftStartTime);
+
+      // 5. التوجيه المباشر إلى / مع تمرير حالة المودال
+      navigate("/", {
+        replace: true,
+        state: {
+          showShiftStartedModal: !isExisting,
+          showWelcomeBackModal: isExisting,
+          cashierName,
+          shiftStartTime,
+        },
+      });
     } catch (err) {
-      console.error("Error activating cashier:", err);
+      console.error("Error activating cashier/starting shift:", err);
+      toast.error(err?.response?.data?.message || err?.message || t("FailedToStartShift", "Failed to start shift"));
+      setSelectedCashierId(null);
     }
   };
-
 
   if (isLoading) {
     return (
@@ -86,23 +157,26 @@ sessionStorage.setItem("financial_accounts", JSON.stringify(response?.data?.fina
       </div>
     );
   }
-  if (error)
+  if (error) {
     return (
       <div>Error loading cashiers: {error.message || "Unknown error"}</div>
     );
+  }
 
   const cashiers = data?.data?.cashiers || [];
   const hiddenCashiers = data?.hidden_cashiers || [];
   const activeCashierIdFromApi = data?.active_cashier_id;
 
   return (
-    <div className={`grid grid-cols-1 md:grid-cols-2 bg-white min-h-screen ${
+    <div
+      className={`grid grid-cols-1 md:grid-cols-2 bg-white min-h-screen ${
         isArabic ? "text-right direction-rtl" : "text-left direction-ltr"
       }`}
-       dir={isArabic ? "rtl" : "ltr"}>
+      dir={isArabic ? "rtl" : "ltr"}
+    >
       <div className="flex items-center justify-center p-8">
         <div className="w-full max-w-md space-y-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-black " >
+          <h1 className="text-3xl md:text-4xl font-bold text-black ">
             {t("SelectionCashier")}
           </h1>
 

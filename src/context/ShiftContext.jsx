@@ -18,16 +18,17 @@ export const ShiftProvider = ({ children }) => {
   useEffect(() => {
     const shiftStatus = localStorage.getItem('shiftStatus');
     const startTime = localStorage.getItem('shiftStartTime');
-    
+
     if (shiftStatus === 'open' && startTime) {
       setIsShiftOpen(true);
       setShiftStartTime(new Date(startTime));
     }
   }, []);
 
-  const openShift = useCallback(() => {
-    const now = new Date();
-    console.log("Opening shift at:", now); // Debug log
+  // openShift accepts an optional customStartTime (ISO string or Date)
+  // used when restoring an existing shift on re-login
+  const openShift = useCallback((customStartTime) => {
+    const now = customStartTime ? new Date(customStartTime) : new Date();
     setIsShiftOpen(true);
     setShiftStartTime(now);
     localStorage.setItem('shiftStatus', 'open');
@@ -42,12 +43,12 @@ export const ShiftProvider = ({ children }) => {
   }, []);
 
   return (
-    <ShiftContext.Provider 
-      value={{ 
-        isShiftOpen, 
-        shiftStartTime, 
-        openShift, 
-        closeShift 
+    <ShiftContext.Provider
+      value={{
+        isShiftOpen,
+        shiftStartTime,
+        openShift,
+        closeShift,
       }}
     >
       {children}
