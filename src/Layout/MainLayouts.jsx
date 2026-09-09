@@ -1,14 +1,24 @@
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate, Navigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Loading from "@/components/Loading";
 import { useSelector } from "react-redux";
 import ShiftStatusModal from "@/components/ShiftStatusModal";
+import { useTenantInfo } from "@/context/TenantContext";
+import PosLockedScreen from "@/components/PosLockedScreen";
 
 export default function MainLayouts() {
   const location = useLocation();
   const navigate = useNavigate();
   const isLoading = useSelector((state) => state.loader.isLoading);
+  const { features, loading: tenantLoading } = useTenantInfo();
+
+  // إذا لم يكن مسجل دخول، يتم توجيهه إلى /login مباشرة
+  const user = sessionStorage.getItem("user");
+  const token = sessionStorage.getItem("token");
+  if (!user || !token) {
+    return <Navigate to="/login" replace />;
+  }
 
   // 1. استخدام URLSearchParams لقراءة الـ query params (مثل ?action=open)
   const queryParams = new URLSearchParams(location.search);
@@ -37,6 +47,18 @@ export default function MainLayouts() {
     // مسح الـ state حتى لا يظهر المودال مجدداً عند عمل Refresh
     navigate(location.pathname, { replace: true, state: {} });
   };
+
+  if (tenantLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <Loading />
+      </div>
+    );
+  }
+
+  if (!tenantLoading && !features?.havePOS) {
+    return <PosLockedScreen />;
+  }
 
   return (
     <SidebarProvider>

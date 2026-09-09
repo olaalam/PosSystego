@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -22,6 +22,10 @@ import { Input } from "@/components/ui/input";
 import logo from "../assets/logo.png";
 import { usePost } from "@/Hooks/usePost";
 import { useShift } from "@/context/ShiftContext";
+import { useTenantInfo } from "@/context/TenantContext";
+import PosUpgradeRequiredModal from "@/components/PosUpgradeRequiredModal";
+import { useTranslation } from "react-i18next";
+import { Lock, RefreshCw, PhoneCall } from "lucide-react";
 import axios from "axios";
 
 // ✅ validation schema
@@ -37,6 +41,117 @@ const formSchema = z.object({
 export default function LoginPage() {
   const navigate = useNavigate();
   const { openShift } = useShift();
+  const { features: contextFeatures, packageInfo: contextPackage } = useTenantInfo();
+  const [checkingSubscription, setCheckingSubscription] = useState(true);
+  const [isRechecking, setIsRechecking] = useState(false);
+  const [havePOS, setHavePOS] = useState(null);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [upgradePackage, setUpgradePackage] = useState(null);
+  const { t, i18n } = useTranslation();
+  const isArabic = i18n?.language === "ar";
+
+  // دالة إعادة فحص الاشتراك عبر POST /api/admin/tenant-info/refresh
+  const handleRecheckSubscription = async () => {
+    try {
+      setIsRechecking(true);
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || "https://bcknd.systego.net/";
+      const cleanBase = baseUrl.replace(/\/+$/, "");
+      const token = sessionStorage.getItem("token") || localStorage.getItem("token");
+      const headers = {
+        Accept: "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
+
+      const res = await axios.post(`${cleanBase}/api/admin/tenant-info/refresh`, {}, {
+        headers,
+      });
+
+      const payload = res?.data?.data || res?.data;
+      const fetchedFeatures = payload?.features;
+      const pkg = payload?.package;
+      setUpgradePackage(pkg);
+
+      const isPosDisabled =
+        fetchedFeatures &&
+        (fetchedFeatures.havePOS === false ||
+          fetchedFeatures.havePOS === "false" ||
+          String(fetchedFeatures.havePOS).toLowerCase() === "false");
+
+      if (isPosDisabled) {
+        setHavePOS(false);
+        setUpgradeModalOpen(true);
+      } else {
+        setHavePOS(true);
+        setUpgradeModalOpen(false);
+      }
+    } catch (err) {
+      console.error("Error refreshing subscription:", err);
+    } finally {
+      setIsRechecking(false);
+    }
+  };
+
+  // ⚡ فحص فوري ومباشر لـ tenant-info عند فتح صفحة تسجيل الدخول
+  useEffect(() => {
+    let isMounted = true;
+    async function verifyTenantPOS() {
+      setCheckingSubscription(true);
+      try {
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || "https://bcknd.systego.net/";
+        const cleanBase = baseUrl.replace(/\/+$/, "");
+        const token = sessionStorage.getItem("token") || localStorage.getItem("token");
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+        const res = await axios.get(`${cleanBase}/api/admin/tenant-info`, {
+          headers,
+        });
+
+        if (isMounted) {
+          const payload = res?.data?.data || res?.data;
+          const fetchedFeatures = payload?.features;
+          const pkg = payload?.package;
+          setUpgradePackage(pkg);
+
+          // التحقق من havePOS بدقة (سواء boolean أو string)
+          const isPosDisabled =
+            fetchedFeatures &&
+            (fetchedFeatures.havePOS === false ||
+              fetchedFeatures.havePOS === "false" ||
+              String(fetchedFeatures.havePOS).toLowerCase() === "false");
+
+          if (isPosDisabled) {
+            setHavePOS(false);
+            setUpgradeModalOpen(true);
+            // مسح أي بيانات جلسة سابقة لمنع الدخول تماماً
+            sessionStorage.clear();
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+          } else {
+            setHavePOS(true);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching tenant info on login mount:", err);
+        if (isMounted) {
+          if (contextFeatures && contextFeatures.havePOS === false) {
+            setHavePOS(false);
+            setUpgradeModalOpen(true);
+          } else {
+            setHavePOS(true);
+          }
+        }
+      } finally {
+        if (isMounted) {
+          setCheckingSubscription(false);
+        }
+      }
+    }
+
+    verifyTenantPOS();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // ✅ استدعاء الهوك بدون parameters
   const { postData, loading, error } = usePost();
@@ -51,12 +166,56 @@ export default function LoginPage() {
 
   // ✅ submit handler
   async function onSubmit(values) {
+    if (havePOS === false) {
+      setUpgradeModalOpen(true);
+      return;
+    }
+
     try {
       // ✅ بنبعت الـ endpoint مع الـ body
       const res = await postData("api/admin/auth/login", values);
 
       if (res?.success) {
         const { token, user } = res.data;
+
+        // ⛔ فحص صلاحية havePOS لهذا المستأجر فوراً قبل السماح بالدخول
+        let tenantFeatures = null;
+        let fetchedPackage = null;
+        try {
+          const baseUrl = import.meta.env.VITE_API_BASE_URL || "https://bcknd.systego.net/";
+          const cleanBase = baseUrl.replace(/\/+$/, "");
+          const tenantRes = await axios.get(`${cleanBase}/api/admin/tenant-info`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: "application/json",
+            },
+          });
+          const tenantPayload = tenantRes?.data?.data || tenantRes?.data;
+          tenantFeatures = tenantPayload?.features;
+          fetchedPackage = tenantPayload?.package;
+        } catch (tenantErr) {
+          console.error("Tenant check error on login:", tenantErr);
+        }
+
+        // لو الـ havePOS مش موجودة أو false، يمنع الدخول تماماً ويظهر مودال الترقية
+        const isPosDisabled =
+          tenantFeatures &&
+          (tenantFeatures.havePOS === false ||
+            tenantFeatures.havePOS === "false" ||
+            String(tenantFeatures.havePOS).toLowerCase() === "false");
+
+        if (isPosDisabled) {
+          sessionStorage.clear();
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          localStorage.removeItem("shiftStatus");
+          localStorage.removeItem("shiftStartTime");
+
+          setHavePOS(false);
+          setUpgradePackage(fetchedPackage || contextPackage);
+          setUpgradeModalOpen(true);
+          return; // ⛔ لا يدخل ولا يسجل
+        }
 
         // تخزين البيانات في sessionStorage
         sessionStorage.setItem("token", token);
@@ -160,6 +319,106 @@ export default function LoginPage() {
     }
   }
 
+  // 1. شاشة التحميل وقت فحص صلاحيات واشتراك المستأجر
+  if (checkingSubscription) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-purple-50 via-white to-purple-100 p-4">
+        <div className="flex flex-col items-center gap-5 bg-white p-8 sm:p-10 rounded-3xl shadow-2xl border border-purple-100 max-w-sm w-full text-center animate-in fade-in duration-300">
+          <img src={logo} alt="SalePro Logo" width={120} height={50} className="object-contain" />
+          <div className="relative w-12 h-12 flex items-center justify-center">
+            <div className="w-12 h-12 border-4 border-purple-100 border-t-purple-600 rounded-full animate-spin" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-base font-bold text-slate-800">
+              {isArabic ? "جاري التحقق من الاشتراك..." : "Verifying Subscription..."}
+            </h3>
+            <p className="text-xs text-slate-400 font-medium">
+              {isArabic ? "يرجى الانتظار لحظات" : "Checking tenant permissions..."}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. إذا كانت havePOS بـ false، يظهر مودال الترقية وشاشة القفل ويمنع تسجيل الدخول تماماً
+  if (havePOS === false) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-50 via-white to-purple-100 p-4">
+        <Card className="w-full max-w-lg rounded-3xl shadow-2xl border border-purple-200 bg-white p-8 sm:p-10 text-center  animate-in fade-in duration-300">
+          <CardHeader className="flex flex-col items-center p-0">
+            <img src={logo} alt="SalePro Logo" width={110} height={45} className="object-contain mb-2" />
+            <div className="size-16 rounded-2xl bg-purple-50 border border-purple-200 text-purple-600 flex items-center justify-center mx-auto shadow-inner">
+              <Lock className="w-8 h-8" />
+            </div>
+          </CardHeader>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-black text-slate-800 tracking-tight">
+              {isArabic ? "نظام نقاط البيع (POS) غير متاح" : "Point of Sale (POS) Not Available"}
+            </h2>
+            <p className="text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
+              {isArabic
+                ? "باقتك الحالية لا تتضمن صلاحية الوصول إلى نظام نقاط البيع (POS). يرجى التواصل مع فريق الدعم الفني لتفعيل الخدمة."
+                : "Your current subscription plan does not include Point of Sale (POS) access. Please contact support to activate POS."}
+            </p>
+          </div>
+
+          {/* Support callout box */}
+          <div className="bg-purple-50 border border-purple-200 rounded-2xl p-3.5 flex items-center justify-center gap-2.5 text-xs font-bold text-purple-900 shadow-xs">
+            <PhoneCall className="w-4 h-4 text-purple-600 flex-shrink-0" />
+            <span>
+              {isArabic
+                ? "يرجى التواصل مع فريق الدعم الفني لترقية باقتك وتفعيل النظام"
+                : "Please contact customer support to upgrade your plan and activate POS"}
+            </span>
+          </div>
+
+          {upgradePackage?.name && (
+            <div className="inline-flex items-center gap-2 bg-purple-50 border border-purple-200 px-4 py-2 rounded-xl text-xs font-bold text-purple-800 mx-auto">
+              <span>{isArabic ? "باقتك الحالية:" : "Your Current Plan:"}</span>
+              <span className="font-black underline">{upgradePackage.name}</span>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-3 pt-2">
+            {/* Recheck subscription button calling POST /api/admin/tenant-info/refresh */}
+            <button
+              type="button"
+              onClick={handleRecheckSubscription}
+              disabled={isRechecking}
+              className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-sm shadow-lg shadow-purple-600/25 cursor-pointer flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRechecking ? "animate-spin" : ""}`} />
+              <span>
+                {isRechecking
+                  ? (isArabic ? "جاري إعادة فحص الاشتراك..." : "Rechecking...")
+                  : (isArabic ? "إعادة فحص الاشتراك" : "Recheck Subscription")}
+              </span>
+            </button>
+
+            {/* View Details button to reopen modal */}
+            <button
+              type="button"
+              onClick={() => setUpgradeModalOpen(true)}
+              className="w-full py-3 px-4 rounded-xl border border-purple-200 text-purple-700 font-bold text-xs hover:bg-purple-50 cursor-pointer transition-colors flex items-center justify-center gap-2"
+            >
+              <Lock className="w-3.5 h-3.5 text-purple-600" />
+              <span>{isArabic ? "عرض التفاصيل" : "View Details"}</span>
+            </button>
+          </div>
+        </Card>
+
+        {/* Upgrade Modal */}
+        <PosUpgradeRequiredModal
+          isOpen={upgradeModalOpen}
+          onClose={() => setUpgradeModalOpen(false)}
+          packageInfo={upgradePackage || contextPackage}
+        />
+      </div>
+    );
+  }
+
+  // 3. إذا كانت havePOS بـ true، يظهر فورم الدخول العادي
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-50 to-purple-100">
       <Card className="w-full max-w-lg rounded-lg shadow-lg">
@@ -209,7 +468,7 @@ export default function LoginPage() {
               {/* Submit */}
               <Button
                 type="submit"
-                className="w-full bg-purple-600 hover:bg-purple-700"
+                className="w-full bg-purple-600 hover:bg-purple-700 cursor-pointer transition-colors"
                 disabled={loading}
               >
                 {loading ? "Loading..." : "Login"}

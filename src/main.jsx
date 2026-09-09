@@ -7,6 +7,7 @@ import "./index.css";
 import { Provider } from "react-redux";
 import { store } from "./Store/store.js";
 import { ShiftProvider } from "./context/ShiftContext.jsx";
+import { TenantProvider } from "./context/TenantContext.jsx";
 import { ToastContainer } from "react-toastify";
 import "./i18n";
 // === React Query ===
@@ -42,25 +43,27 @@ if ("serviceWorker" in navigator) {
 // === Render ===
 ReactDOM.createRoot(document.getElementById("root")).render(
   <Provider store={store}>
-    <ShiftProvider>
-      <QueryClientProvider client={queryClient}>
-        <ToastContainer
-          position="top-right"
-          autoClose={3000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="light"
-        />
-        <App />
-        {/* أداة تطوير React Query (اختيارية - تُظهر في وضع التطوير فقط) */}
-        <ReactQueryDevtools initialIsOpen={false} />
-      </QueryClientProvider>
-    </ShiftProvider>
+    <TenantProvider>
+      <ShiftProvider>
+        <QueryClientProvider client={queryClient}>
+          <ToastContainer
+            position="top-right"
+            autoClose={3000}
+            hideProgressBar={false}
+            newestOnTop={false}
+            closeOnClick
+            rtl={false}
+            
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+            theme="light"
+          />
+          <App />
+          {/* أداة تطوير React Query (اختيارية - تُظهر في وضع التطوير فقط) */}
+          <ReactQueryDevtools initialIsOpen={false} />
+        </QueryClientProvider>
+      </ShiftProvider>
+    </TenantProvider>
   </Provider>
 );

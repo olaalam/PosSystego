@@ -62,7 +62,7 @@ import AddWasted from "@/Pages/Wasted/AddWasted";
 // 🚀 المكون الجديد: Combobox للبحث في العملاء (مُخصص)
 // ===============================================
 
-function CustomerSearchCombobox({ customers, selectedCustomer, onSelect, t }) {
+function CustomerSearchCombobox({ customers, selectedCustomer, onSelect, onClear, t }) {
   const [open, setOpen] = useState(false);
 
   const selectedCustomerObj = customers.find(
@@ -70,68 +70,94 @@ function CustomerSearchCombobox({ customers, selectedCustomer, onSelect, t }) {
   );
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          className="w-full max-w-[130px] sm:max-w-[220px] justify-between h-auto py-1 px-3 text-xs sm:text-sm"
-        >
-          {selectedCustomerObj
-            ? `${selectedCustomerObj.name}${
-                selectedCustomerObj.phone_number
-                  ? ` (${selectedCustomerObj.phone_number})`
-                  : ""
-              }`
-            : t("Select Customer")}
-          <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
-        </Button>
-      </PopoverTrigger>
+    <div className="flex items-center gap-1">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            className="w-full max-w-[130px] sm:max-w-[220px] justify-between h-auto py-1 px-3 text-xs sm:text-sm"
+          >
+            <span className="truncate">
+              {selectedCustomerObj
+                ? `${selectedCustomerObj.name}${
+                    selectedCustomerObj.phone_number
+                      ? ` (${selectedCustomerObj.phone_number})`
+                      : ""
+                  }`
+                : t("Select Customer")}
+            </span>
+            <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />
+          </Button>
+        </PopoverTrigger>
 
-      <PopoverContent className="w-[260px] p-0">
-        <Command
-          filter={(value, search) => {
-            if (!search) return 1;
-            return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
-          }}
-        >
-          <CommandInput placeholder={t("Search by name or phone")} />
-          <CommandList>
-            <CommandEmpty>{t("No customer found")}</CommandEmpty>
+        <PopoverContent className="w-[260px] p-0">
+          <Command
+            filter={(value, search) => {
+              if (!search) return 1;
+              return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
+            }}
+          >
+            <CommandInput placeholder={t("Search by name or phone")} />
+            <CommandList>
+              <CommandEmpty>{t("No customer found")}</CommandEmpty>
 
-            <CommandGroup className="max-h-[200px] overflow-y-auto">
-              {customers.map((customer) => (
-                <CommandItem
-                  key={customer._id}
-                  value={`${customer.name} ${customer.phone_number || ""}`}
-                  onSelect={() => {
-                    onSelect(customer._id);
-                    setOpen(false);
-                  }}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      selectedCustomer === customer._id
-                        ? "opacity-100"
-                        : "opacity-0",
-                    )}
-                  />
-                  <div className="flex flex-col">
-                    <span>{customer.name}</span>
-                    {customer.phone_number && (
-                      <span className="text-xs text-gray-500">
-                        {customer.phone_number}
-                      </span>
-                    )}
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+              <CommandGroup className="max-h-[200px] overflow-y-auto">
+                {selectedCustomer && (
+                  <CommandItem
+                    value="__clear__"
+                    onSelect={() => {
+                      onClear?.();
+                      setOpen(false);
+                    }}
+                    className="text-red-500 font-medium cursor-pointer"
+                  >
+                    ✕ {t("Clear Customer", "Clear Customer")}
+                  </CommandItem>
+                )}
+                {customers.map((customer) => (
+                  <CommandItem
+                    key={customer._id}
+                    value={`${customer.name} ${customer.phone_number || ""}`}
+                    onSelect={() => {
+                      onSelect(customer._id);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        selectedCustomer === customer._id
+                          ? "opacity-100"
+                          : "opacity-0",
+                      )}
+                    />
+                    <div className="flex flex-col">
+                      <span>{customer.name}</span>
+                      {customer.phone_number && (
+                        <span className="text-xs text-gray-500">
+                          {customer.phone_number}
+                        </span>
+                      )}
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      {selectedCustomer && (
+        <button
+          type="button"
+          onClick={onClear}
+          title={t("Clear Customer", "Clear Customer")}
+          className="w-6 h-6 flex items-center justify-center rounded-full text-gray-400 hover:text-red-500 hover:bg-gray-100 transition-colors text-xs font-bold shrink-0"
+        >
+          ✕
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -169,6 +195,22 @@ export default function Navbar() {
   const [selectedCustomer, setSelectedCustomer] = useState(
     sessionStorage.getItem("selected_customer_id") || "",
   );
+
+  useEffect(() => {
+    const handleResetCustomer = () => {
+      setSelectedCustomer("");
+      sessionStorage.removeItem("selected_customer_id");
+    };
+    window.addEventListener("reset_selected_customer", handleResetCustomer);
+    return () => {
+      window.removeEventListener("reset_selected_customer", handleResetCustomer);
+    };
+  }, []);
+
+  const handleClearCustomer = () => {
+    setSelectedCustomer("");
+    sessionStorage.removeItem("selected_customer_id");
+  };
 
   useEffect(() => {
     if (isShiftOpen) {
@@ -214,7 +256,7 @@ export default function Navbar() {
     } else if (value === "online-order") {
       navigate("/online-orders", { replace: true });
     } else if (value === "return") {
-      navigate("/return-sale", { replace: true }); // الصفحة الجديدة
+      navigate("/returns", { replace: true }); // الصفحة الجديدة
     }
   };
 
@@ -398,6 +440,7 @@ export default function Navbar() {
                 setSelectedCustomer(id);
                 sessionStorage.setItem("selected_customer_id", id);
               }}
+              onClear={handleClearCustomer}
               t={t}
             />
             <button

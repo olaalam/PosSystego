@@ -39,9 +39,10 @@ export default function Shift() {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
       // ✅ هنا POST لفتح الشيفت
-      await axios.post(endpoint, payload, { headers });
+      const res = await axios.post(endpoint, payload, { headers });
+      const serverStartTime = res?.data?.data?.shift?.start_time;
 
-      openShift();
+      openShift(serverStartTime);
       setShiftStatus("Shift is open.");
 
 

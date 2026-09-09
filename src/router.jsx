@@ -19,6 +19,7 @@ import AllOrders from "./Pages/AllOrders/AllOrders";
 import SinglePage from "./Pages/OnlineOrders/SinglePage";
 import OnlineTabs from "./Pages/OnlineOrders/OnlineTabs";
 import ReturnSalePage from "./Pages/Return/ReturnSalePage";
+import ReturnsListPage from "./Pages/Return/returns";
 
 const router = createBrowserRouter(
   [
@@ -193,7 +194,15 @@ const router = createBrowserRouter(
             </ProtectedRoute>
           )
         },
-       { path:"/return-sale" ,element:(<ReturnSalePage />)}
+       { path:"/return-sale" ,element:(<ReturnSalePage />)},
+       {
+         path: "/returns",
+         element: (
+           <ProtectedRoute>
+             <ReturnsListPage />
+           </ProtectedRoute>
+         ),
+       }
       ],
     },
   ],
