@@ -20,6 +20,7 @@ import SinglePage from "./Pages/OnlineOrders/SinglePage";
 import OnlineTabs from "./Pages/OnlineOrders/OnlineTabs";
 import ReturnSalePage from "./Pages/Return/ReturnSalePage";
 import ReturnsListPage from "./Pages/Return/returns";
+import ProductDetails from "./Pages/Details/Productdetails";
 
 const router = createBrowserRouter(
   [
@@ -102,6 +103,19 @@ const router = createBrowserRouter(
               element: (
                 <ProtectedRoute>
                   <Item />
+                </ProtectedRoute>
+              ),
+            },
+          ],
+        },
+        {
+          path: "product-details/:id",
+          children: [
+            {
+              index: true,
+              element: (
+                <ProtectedRoute>
+                  <ProductDetails />
                 </ProtectedRoute>
               ),
             },

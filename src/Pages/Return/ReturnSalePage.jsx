@@ -181,7 +181,7 @@ export default function ReturnSalePage() {
     const payload = {
       sale_id: saleData._id,
       items: validItems.map((item) => ({
-        product_sale_id: item.product_price?._id || item._id,
+        product_sale_id: item._id,
         quantity: item.return_quantity,
         reason: item.reason.trim(),
       })),
@@ -215,6 +215,7 @@ export default function ReturnSalePage() {
     } catch (err) {
       const msg = err?.response?.data?.message || t("Failed to create return", "Failed to create return");
       toast.error(msg);
+      navigate("/returns");
     }
   };
 
@@ -257,7 +258,7 @@ export default function ReturnSalePage() {
                   <Button type="submit" className="flex-1 bg-purple-600 hover:bg-purple-700 text-white" disabled={loading}>
                     {loading ? t("Searching...", "Searching...") : t("Search Sale", "Search Sale")}
                   </Button>
-                  <Button type="button" variant="outline" onClick={() => navigate("/")} disabled={loading}>
+                  <Button type="button" variant="outline" onClick={() => navigate("/returns")} disabled={loading}>
                     {t("Cancel")}
                   </Button>
                 </div>
