@@ -249,7 +249,8 @@ ${showCustomerInfo ? `
             </thead>
             <tbody>
             ${receiptData.items.map((item) => {
-                const productName = isArabic && item.nameAr ? item.nameAr : item.name;
+                // اسم المنتج باللغة الإنجليزية دائمًا حتى لو واجهة المستخدم باللغة العربية
+                const productName = item.name || item.nameAr;
                 const unitPrice = (item.total / item.qty).toFixed(2); // سعر القطعة = الإجمالي ÷ الكمية
                 
                 // تنسيق الـ Variations
@@ -387,8 +388,8 @@ export const prepareReceiptData = (
   }, 0);
 
   return {
-    // البيانات الأساسية
-    invoiceNumber: saleData.reference || saleData._id || "---",
+    // البيانات الأساسية (رقم الفاتورة اليومي المتسلسل)
+    invoiceNumber: saleData.daily_order_number || saleData.reference || saleData._id || "---",
     dateFormatted: dateFormatted,
     timeFormatted: timeFormatted,
     orderType: detectedType,
