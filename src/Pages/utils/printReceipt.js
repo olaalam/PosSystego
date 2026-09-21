@@ -520,9 +520,46 @@ export const printReceiptSilently = async (
   callback
 ) => {
   try {
-    if (!qz.websocket.isActive()) {
-      toast.error("❌ QZ Tray is not connected.");
+    const cashierHtml = getReceiptHTML(receiptData, {
+      design: "full",
+      type: "cashier",
+    });
+
+    const fallbackToBrowserPrint = () => {
+      const printWindow = window.open("", "_blank", "width=400,height=600");
+      if (!printWindow) {
+        toast.error("برجاء تفعيل النوافذ المنبثقة (Pop-ups) للطباعة");
+        callback();
+        return;
+      }
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Receipt</title>
+            <style>
+              @media print {
+                @page { margin: 0; }
+                body { margin: 0; }
+              }
+            </style>
+          </head>
+          <body>
+            ${cashierHtml}
+            <script>
+              setTimeout(() => {
+                window.print();
+                window.close();
+              }, 500);
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
       callback();
+    };
+
+    if (!qz.websocket.isActive()) {
+      fallbackToBrowserPrint();
       return;
     }
 
@@ -532,11 +569,6 @@ export const printReceiptSilently = async (
     try {
       const cashierPrinterName = await qz.printers.getDefault();
       if (!cashierPrinterName) throw new Error("No default printer found.");
-
-      const cashierHtml = getReceiptHTML(receiptData, {
-        design: "full",
-        type: "cashier",
-      });
       
       const cashierConfig = qz.configs.create(cashierPrinterName);
 
@@ -547,8 +579,7 @@ export const printReceiptSilently = async (
       );
     } catch (err) {
       console.error("Print error:", err);
-      toast.error("خطأ في الطابعة الافتراضية");
-      callback();
+      fallbackToBrowserPrint();
       return;
     }
 
