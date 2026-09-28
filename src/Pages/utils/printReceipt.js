@@ -1,8 +1,141 @@
-import qz from "qz-tray";
 import { toast } from "react-toastify";
 
 // ===================================================================
-// 1. HashMap للطابعات
+// 0. أداة اختبار عرض الطباعة (مسطرة قياس)
+// ===================================================================
+const generateRulerHTML = (widthPx) => {
+  const marks = [];
+  const step = 50;
+  for (let px = 0; px <= (widthPx || 576); px += step) {
+    marks.push(`
+      <div style="position:absolute; left:${px}px; top:0; width:1px; height:14px; background:#000;"></div>
+      <div style="position:absolute; left:${px}px; top:16px; font-size:8px; transform:translateX(-50%); font-family:Tahoma,Arial,sans-serif;">${px}</div>
+    `);
+  }
+
+  return `
+  <!DOCTYPE html>
+  <html>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        * { box-sizing: border-box; }
+        html, body { width: 100%; margin: 0; padding: 0; }
+        body { font-family: Tahoma, Arial, sans-serif; }
+        .configured {
+          text-align: center;
+          font-size: 12px;
+          font-weight: bold;
+          margin-bottom: 6px;
+        }
+        .ruler {
+          position: relative;
+          width: 100%;
+          height: 28px;
+          border-bottom: 2px solid #000;
+          margin-bottom: 8px;
+        }
+        .box-100 {
+          width: 100%;
+          border: 1px dashed #000;
+          padding: 4px;
+          font-size: 11px;
+          text-align: center;
+          margin-bottom: 6px;
+        }
+        .box-100 b { font-size: 13px; }
+        .edge-test {
+          width: 100%;
+          font-size: 11px;
+          font-weight: bold;
+          text-align: right;
+          border: 1px dashed #000;
+          padding: 4px;
+          margin-bottom: 6px;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="configured">RECEIPT_IMAGE_WIDTH_PX = ${widthPx ?? "غير معروف"} px</div>
+      <div class="ruler">${marks.join("")}</div>
+      <div class="box-100">
+        <b>100% WIDTH BOX</b><br/>
+        لو أي جزء من الإطار ده اتقطع فعليًا في الورق، يبقى الطابعة
+        نفسها مش بتدعم ${widthPx ?? "؟"} نقطة في السطر — جرب رقم أصغر
+        (زي 512) بمتغير RECEIPT_WIDTH_PX
+      </div>
+      <div class="edge-test">آخر حرف هنا لازم يبان كامل ← END</div>
+    </body>
+  </html>
+  `;
+};
+
+// ═══════════════════════════════════════════════════════════
+// ✅ دالة الطباعة المركزية — iframe مخفي
+// ═══════════════════════════════════════════════════════════
+const printHTMLViaIframe = (htmlContent, { onDone } = {}) => {
+  const oldFrame = document.getElementById("__receipt_print_iframe__");
+  if (oldFrame) oldFrame.remove();
+
+  const iframe = document.createElement("iframe");
+  iframe.id = "__receipt_print_iframe__";
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  iframe.style.visibility = "hidden";
+  document.body.appendChild(iframe);
+
+  const cleanup = () => {
+    setTimeout(() => {
+      try {
+        iframe.remove();
+      } catch (_) {}
+      onDone?.();
+    }, 500);
+  };
+
+  const doc = iframe.contentWindow.document;
+  doc.open();
+  doc.write(htmlContent);
+  doc.close();
+
+  const triggerPrint = () => {
+    setTimeout(() => {
+      try {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      } catch (err) {
+        console.error("iframe print failed:", err);
+        toast.error("❌ فشل الطباعة");
+      } finally {
+        cleanup();
+      }
+    }, 400);
+  };
+
+  if (iframe.contentWindow.document.readyState === "complete") {
+    triggerPrint();
+  } else {
+    iframe.onload = triggerPrint;
+  }
+};
+
+export const printTestRuler = async () => {
+  try {
+    const widthPx = 576;
+    const rulerHtml = generateRulerHTML(widthPx);
+    printHTMLViaIframe(rulerHtml);
+  } catch (err) {
+    console.error("Test ruler print failed:", err);
+    toast.error("❌ فشل طباعة مسطرة الاختبار");
+  }
+};
+
+// ===================================================================
+// 1. إعدادات الطابعات
 // ===================================================================
 const PRINTER_CONFIG = {
   cashier: {
@@ -15,67 +148,113 @@ const PRINTER_CONFIG = {
 };
 
 // ===================================================================
-// 4. تصميم إيصال الكاشير (مُعدَّل لإضافة الـ Variations)
+// 2. تصغير الخط تلقائيًا للأرقام الكبيرة
 // ===================================================================
+const scaledFontSizePx = (
+  value,
+  baseSizePx,
+  { maxChars = 8, minSizePx } = {},
+) => {
+  const text = String(value ?? "");
+  const digitsLength = text.replace(/[^0-9]/g, "").length;
+  if (digitsLength <= maxChars) return baseSizePx;
 
+  const floor = minSizePx ?? Math.round(baseSizePx * 0.55);
+  const extra = digitsLength - maxChars;
+  const shrunk = baseSizePx - extra * 1.3;
+  return Math.max(Math.round(shrunk), floor);
+};
+
+// ===================================================================
+// 3. تصميم إيصال الكاشير (بدون Shipping)
+// ===================================================================
 const formatCashierReceipt = (receiptData) => {
   const isArabic = localStorage.getItem("language") === "ar";
-  
-  // دالة مساعدة لتنسيق وعرض الـ Variations (الحجم واللون)
+
   const formatVariationsHTML = (variationsArray) => {
     if (!Array.isArray(variationsArray) || variationsArray.length === 0) {
       return "";
     }
-    
-    // سحب أسماء الخيارات وضمها في سطر واحد
     const variationsText = variationsArray
-      .map(v => v.name)
+      .map((v) => v.name)
       .filter(Boolean)
       .join(", ");
-      
     if (!variationsText) return "";
-
-    return `<div class="addon-row" style="font-weight:normal;"> ${variationsText}</div>`;
+    return `<div class="addon-row" style="font-weight:normal;">${variationsText}</div>`;
   };
 
+  const showCustomerInfo =
+    receiptData.customer &&
+    ((receiptData.customer.name &&
+      receiptData.customer.name.trim() !== "" &&
+      receiptData.customer.name !== "عميل نقدي") ||
+      (receiptData.customer.phone && receiptData.customer.phone.trim() !== ""));
 
-const showCustomerInfo = receiptData.customer && 
-  (
-    (receiptData.customer.name && receiptData.customer.name.trim() !== "" && receiptData.customer.name !== "عميل نقدي") ||
-    (receiptData.customer.phone && receiptData.customer.phone.trim() !== "")
-  );
+  const grandTotalText = Number(receiptData.total || 0).toFixed(2);
+  const grandTotalDigits = grandTotalText.replace(/[^0-9]/g, "").length;
+  const grandTotalStacked = grandTotalDigits > 7;
+  const grandTotalFontSize = grandTotalStacked
+    ? scaledFontSizePx(grandTotalText, 24, { maxChars: 9, minSizePx: 16 })
+    : scaledFontSizePx(grandTotalText, 22, { maxChars: 7, minSizePx: 15 });
+
   return `
   <!DOCTYPE html>
   <html>
     <head>
       <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Receipt</title>
       <style>
-        @page { margin: 0; size: auto; }
+        @page {
+          margin: 0 !important;
+          padding: 0 !important;
+          size: 80mm auto;
+        }
+
+        @page :first { margin: 0 !important; }
+        @page :left { margin: 0 !important; }
+        @page :right { margin: 0 !important; }
+
         * {
           box-sizing: border-box;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          color-adjust: exact !important;
         }
+
+        html {
+          width: 100%;
+          margin: 0 !important;
+          padding: 0 !important;
+          -webkit-text-size-adjust: 100%;
+        }
+
         body {
           margin: 0 !important;
           padding: 0 !important;
           width: 100% !important;
+          max-width: 100% !important;
           background-color: #fff;
           font-family: 'Tahoma', 'Arial', sans-serif;
           color: #000;
           direction: ${isArabic ? "rtl" : "ltr"};
           font-size: 13px;
+          -webkit-font-smoothing: antialiased;
         }
+
         .container {
           width: 100% !important;
-          padding: 0 4px;
+          padding: 0;
           margin: 0;
           box-sizing: border-box;
         }
+
         .header { text-align: center; margin-bottom: 6px; }
-        .header h1 { 
-            font-size: 22px; 
-            font-weight: 900; 
-            margin: 0 0 2px 0; 
-            text-transform: uppercase; 
+        .header h1 {
+            font-size: 22px;
+            font-weight: 900;
+            margin: 0 0 2px 0;
+            text-transform: uppercase;
             letter-spacing: 1px;
             color: #000;
         }
@@ -95,8 +274,8 @@ const showCustomerInfo = receiptData.customer &&
         }
         .table-info { text-align: center; font-weight: bold; font-size: 13px; margin-bottom: 4px; color: #000; }
 
-        .meta-grid { 
-            width: 100%; 
+        .meta-grid {
+            width: 100%;
             table-layout: fixed;
             border-collapse: collapse;
             border-top: 1px dashed #000;
@@ -122,115 +301,160 @@ const showCustomerInfo = receiptData.customer &&
             text-transform: uppercase;
         }
 
-        .items-table { 
-            width: 100%; 
-            border-collapse: collapse; 
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
             table-layout: fixed;
         }
-        .items-table th { 
-            font-size: 11px; 
+        .items-table th {
+            font-size: 11px;
             font-weight: 900;
-            border-bottom: 2px solid #000; 
+            border-bottom: 2px solid #000;
             padding-bottom: 3px;
             color: #000;
         }
-        .items-table td { 
-            padding: 4px 1px; 
+        .items-table td {
+            padding: 4px 1px;
             border-bottom: 1px dashed #999;
             vertical-align: top;
+            overflow-wrap: break-word;
         }
-        .item-qty { font-size: 12px; font-weight: bold; text-align: center; white-space: nowrap; color: #000; }
+        .item-qty { font-size: 12px; font-weight: bold; text-align: center; color: #000; }
         .item-name { font-size: 12px; font-weight: bold; padding: 0 2px; color: #000; word-break: break-word; }
-        .item-price { font-size: 12px; font-weight: bold; text-align: center; white-space: nowrap; color: #000; }
-        .item-total { font-size: 12px; font-weight: 900; white-space: nowrap; color: #000; }
-        
+        .item-price { font-weight: bold; text-align: center; color: #000; overflow-wrap: anywhere; }
+        .item-total { font-weight: 900; color: #000; overflow-wrap: anywhere; }
+
         .addon-row { font-size: 10px; color: #000; margin-top: 2px; font-weight: normal; }
         .notes-row { font-size: 10px; font-style: italic; color: #000; }
 
         .totals-section { width: 100%; margin-top: 6px; border-top: 2px solid #000; padding-top: 6px; }
-        .totals-row { 
-            display: flex; 
-            justify-content: space-between; 
-            margin-bottom: 3px; 
-            font-size: 13px; 
+        .totals-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            font-size: 13px;
             font-weight: bold;
             width: 100%;
             color: #000;
+            gap: 6px;
         }
-        
+        .totals-row span:last-child { overflow-wrap: anywhere; text-align: ${isArabic ? "left" : "right"}; direction: ltr; unicode-bidi: embed; }
+
         .grand-total {
             border: 2px solid #000;
             padding: 6px 8px;
             margin-top: 6px;
             text-align: center;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: ${grandTotalStacked ? "column" : "row"};
+            justify-content: ${grandTotalStacked ? "flex-start" : "space-between"};
+            align-items: ${grandTotalStacked ? "stretch" : "center"};
             width: 100%;
             box-sizing: border-box;
             color: #000;
+            gap: ${grandTotalStacked ? "2px" : "6px"};
         }
         .grand-total-label {
-            font-size: 16px;
+            font-size: ${grandTotalStacked ? "12px" : "16px"};
             font-weight: 900;
             color: #000;
+            flex-shrink: 0;
+            text-align: ${grandTotalStacked ? "center" : isArabic ? "right" : "left"};
         }
         .grand-total-value {
-            font-size: 22px;
             font-weight: 900;
             color: #000;
             white-space: nowrap;
+            text-align: ${grandTotalStacked ? "center" : isArabic ? "left" : "right"};
+            direction: ltr;
+            unicode-bidi: embed;
         }
 
-.cust-info {
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 1.5;
-  padding: 6px 8px;
-  margin-bottom: 6px;
-}
+        .cust-info {
+          font-size: 11px;
+          font-weight: 500;
+          line-height: 1.5;
+          padding: 6px 8px;
+          margin-bottom: 6px;
+        }
 
-.cust-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 6px;
-}
+        .cust-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 6px;
+        }
 
-.cust-row:not(:last-child) {
-  margin-bottom: 2px;
-}
+        .cust-row:not(:last-child) {
+          margin-bottom: 2px;
+        }
 
-.cust-label {
-  opacity: 0.7;
-  white-space: nowrap;
-}
+        .cust-label {
+          opacity: 0.7;
+          white-space: nowrap;
+        }
 
-.cust-value {
-  font-weight: 600;
-}
+        .cust-value {
+          font-weight: 600;
+        }
 
-.cust-value.phone {
-  text-align: ${isArabic ? "right" : "left"};
-}
+        .cust-value.phone {
+          text-align: ${isArabic ? "right" : "left"};
+        }
 
+        @media print {
+          @page {
+            margin: 0 !important;
+            padding: 0 !important;
+            size: 80mm auto;
+          }
+
+          html, body {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #fff !important;
+          }
+
+          .container {
+            width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+
+          .items-table tr,
+          .totals-row,
+          .grand-total {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+
+          .no-print,
+          .print-hidden {
+            display: none !important;
+          }
+        }
       </style>
     </head>
     <body>
       <div class="container">
-        
+
         <div class="header">
           <h1>${receiptData.restaurantName}</h1>
           ${receiptData.restaurantAddress ? `<p>${receiptData.restaurantAddress}</p>` : ""}
           ${receiptData.restaurantPhone ? `<div class="phone">${receiptData.restaurantPhone}</div>` : ""}
-          ${receiptData.referenceNumber ? `
+          ${
+            receiptData.referenceNumber
+              ? `
             <div class="ref-number">
               ${isArabic ? "الرقم المرجعي (Reference):" : "Reference No:"} ${receiptData.referenceNumber}
             </div>
-          ` : ""}
+          `
+              : ""
+          }
         </div>
 
-        
         <table class="meta-grid">
             <tr>
                 <td style="width: 50%; border-${isArabic ? "left" : "right"}: 1px dashed #000; padding: 4px 2px;">
@@ -245,101 +469,130 @@ const showCustomerInfo = receiptData.customer &&
             </tr>
         </table>
 
-${showCustomerInfo ? `
-  <div class="section-header">
-    ${isArabic ? "بيانات العميل" : "CUSTOMER INFO"}
-  </div>
+        ${
+          showCustomerInfo
+            ? `
+          <div class="section-header">
+            ${isArabic ? "بيانات العميل" : "CUSTOMER INFO"}
+          </div>
 
-  <div class="cust-info">
-    <div class="cust-row">
-      <span class="cust-label">
-        ${isArabic ? "الاسم:" : "Name:"}
-      </span>
-      <span class="cust-value">
-        ${receiptData.customer.name}
-      </span>
-    </div>
+          <div class="cust-info">
+            <div class="cust-row">
+              <span class="cust-label">
+                ${isArabic ? "الاسم:" : "Name:"}
+              </span>
+              <span class="cust-value">
+                ${receiptData.customer.name}
+              </span>
+            </div>
 
-    ${receiptData.customer.phone ? `
-      <div class="cust-row">
-        <span class="cust-label">
-          ${isArabic ? "الهاتف:" : "Phone:"}
-        </span>
-        <span
-          class="cust-value phone"
-          style="direction:ltr;"
-        >
-          ${receiptData.customer.phone}
-        </span>
-      </div>
-    ` : ""}
-  </div>
-` : ""}
+            ${
+              receiptData.customer.phone
+                ? `
+              <div class="cust-row">
+                <span class="cust-label">
+                  ${isArabic ? "الهاتف:" : "Phone:"}
+                </span>
+                <span
+                  class="cust-value phone"
+                  style="direction:ltr;"
+                >
+                  ${receiptData.customer.phone}
+                </span>
+              </div>
+            `
+                : ""
+            }
+          </div>
+        `
+            : ""
+        }
 
         <table class="items-table">
             <thead>
                 <tr>
-                    <th style="width: 42%; text-align: ${isArabic ? "right" : "left"};">${isArabic ? "الصنف" : "Item"}</th>
+                    <th style="width: 40%; text-align: ${isArabic ? "right" : "left"};">${isArabic ? "الصنف" : "Item"}</th>
                     <th style="width: 22%; text-align: center;">${isArabic ? "سعر" : "Price"}</th>
-                    <th style="width: 12%; text-align: center;">${isArabic ? "ع" : "Qty"}</th>
-                    <th style="width: 24%; text-align: ${isArabic ? "left" : "right"};">${isArabic ? "إجمالي" : "Total"}</th>
+                    <th style="width: 10%; text-align: center;">${isArabic ? "ع" : "Qty"}</th>
+                    <th style="width: 28%; text-align: ${isArabic ? "left" : "right"};">${isArabic ? "إجمالي" : "Total"}</th>
                 </tr>
             </thead>
             <tbody>
-            ${receiptData.items.map((item) => {
-                // اسم المنتج باللغة الإنجليزية دائمًا حتى لو واجهة المستخدم باللغة العربية
-                const productName = item.name || item.nameAr;
-                const unitPrice = (item.total / item.qty).toFixed(2); // سعر القطعة = الإجمالي ÷ الكمية
-                
-                // تنسيق الـ Variations
+            ${receiptData.items
+              .map((item) => {
+                const productName = item.name || item.nameAr || "منتج";
+                const qty = Number(item.qty || 1);
+                const itemTotal = Number(item.total || 0);
+                const unitPrice = (
+                  qty > 0 ? itemTotal / qty : Number(item.price || 0)
+                ).toFixed(2);
                 const variationsHTML = formatVariationsHTML(item.variations);
+
+                const priceFontSize = scaledFontSizePx(unitPrice, 12, {
+                  maxChars: 6,
+                  minSizePx: 8,
+                });
+                const totalFontSize = scaledFontSizePx(
+                  itemTotal.toFixed(2),
+                  12,
+                  {
+                    maxChars: 6,
+                    minSizePx: 8,
+                  },
+                );
 
                 return `
                   <tr>
                     <td class="item-name" style="text-align: ${isArabic ? "right" : "left"};">
                       ${productName}
-                      ${variationsHTML}
-                      ${item.notes ? `<div class="notes-row">(${item.notes})</div>` : ""}
+                      ${variationsHTML}${item.notes ? `<div class="notes-row">(${item.notes})</div>` : ""}
                     </td>
-                    <td class="item-price">
+                    <td class="item-price" style="font-size:${priceFontSize}px; direction: ltr;">
                       ${unitPrice}
                     </td>
-                    <td class="item-qty">${item.qty}</td>
-                    <td class="item-total" style="text-align: ${isArabic ? "left" : "right"};">${item.total.toFixed(2)}</td>
+                    <td class="item-qty">${qty}</td>
+                    <td class="item-total" style="text-align: ${isArabic ? "left" : "right"}; font-size:${totalFontSize}px; direction: ltr;">
+                      ${itemTotal.toFixed(2)}
+                    </td>
                   </tr>
                 `;
-            }).join("")}
+              })
+              .join("")}
             </tbody>
         </table>
 
         <div class="totals-section">
 
+            <!-- ✅ Subtotal -->
             <div class="totals-row">
                 <span>${isArabic ? "المجموع الفرعي" : "Subtotal"}</span>
-                <span>${Number(receiptData.subtotal).toFixed(2)}</span>
+                <span>${Number(receiptData.subtotal || 0).toFixed(2)}</span>
             </div>
 
-            ${Number(receiptData.discount) > 0 ? `
+            <!-- ✅ Discount — دايماً بيظهر -->
             <div class="totals-row" style="color: #000;">
                 <span>${isArabic ? "الخصم" : "Discount"}</span>
-                <span>-${receiptData.discount}</span>
-            </div>` : ""}
+                <span>${Number(receiptData.discount || 0) > 0 ? "-" : ""}${Number(receiptData.discount || 0).toFixed(2)}</span>
+            </div>
 
-            ${Number(receiptData.tax) > 0 ? `
+            <!-- ✅ Tax — دايماً بيظهر -->
             <div class="totals-row">
                 <span>${isArabic ? "الضريبة" : "Tax"}</span>
-                <span>${receiptData.tax}</span>
-            </div>` : ""}
+                <span>${Number(receiptData.tax || 0).toFixed(2)}</span>
+            </div>
 
-            ${Number(receiptData.deliveryFees) > 0 ? `
+            <!-- ✅ Service Fees — دايماً بيظهر -->
             <div class="totals-row">
-                <span>${isArabic ? "الشحن" : "Shipping"}</span>
-                <span>${receiptData.deliveryFees}</span>
-            </div>` : ""}
+                <span>${isArabic ? "رسوم الخدمة" : "Service Fees"}</span>
+                <span>${Number(receiptData.serviceFees || 0).toFixed(2)}</span>
+            </div>
 
+            <!-- ❌ Shipping — اتشال -->
+
+            <!-- ✅ Grand Total -->
             <div class="grand-total">
                 <span class="grand-total-label">${isArabic ? "الإجمالي الكلي" : "GRAND TOTAL"}</span>
-                <span class="grand-total-value">${Number(receiptData.total).toFixed(2)}</span>
+                <span class="grand-total-value" style="font-size:${grandTotalFontSize}px;">${grandTotalText}</span>
             </div>
 
         </div>
@@ -365,16 +618,15 @@ ${showCustomerInfo ? `
 };
 
 // ===================================================================
-// 7. اختيار التصميم
+// 4. اختيار التصميم
 // ===================================================================
 const getReceiptHTML = (receiptData, printerConfig) => {
   return formatCashierReceipt(receiptData);
 };
 
 // ===================================================================
-// 8. تهيئة البيانات (مُعدَّلة لسحب الـ Variations والرقم المرجعي)
+// 5. تهيئة البيانات (prepareReceiptData)
 // ===================================================================
-
 export const prepareReceiptData = (
   orderItems,
   amountToPay,
@@ -386,15 +638,19 @@ export const prepareReceiptData = (
   requiredTotal,
   responseSuccess,
   response,
+  frontendTaxAmount = 0,
+  serviceFeesFromAPI = 0,
 ) => {
-  // 1. استخراج البيانات من الهيكل
-  const rootData = response?.data || response || {};
-  const saleData = rootData.sale || {};
-  const storeData = rootData.store || {};
-  const itemsList = rootData.items || [];
-  const customerData = saleData.customer_id || rootData.customer || {};
+  const rawResponse = response || {};
+  const rootData = rawResponse?.data || rawResponse;
+  const saleData = rootData.sale || rawResponse.sale || {};
+  const storeData = rootData.store || rawResponse.store || {};
+  const itemsList = rootData.items || rawResponse.items || [];
+  const pricingDetails =
+    rootData.pricing_details || rawResponse.pricing_details || {};
+  const customerData =
+    saleData.customer_id || rootData.customer || rawResponse.customer || {};
 
-  // 2. معالجة التواريخ
   const dateObj = saleData.date ? new Date(saleData.date) : new Date();
   const dateFormatted = dateObj.toLocaleDateString("en-GB", {
     day: "2-digit",
@@ -407,117 +663,144 @@ export const prepareReceiptData = (
     hour12: true,
   });
 
-  // 3. تحديد نوع الطلب
-  let detectedType = "sale";
-  if (Number(saleData.shipping) > 0) {
-    detectedType = "delivery";
-  }
+  const discountValue = Number(
+    pricingDetails.discount_amount || saleData.discount || 0,
+  );
 
-  // 4. استخراج قيم الضريبة والخصم من الهيكل الجديد
-  // الأولوية للقيمة داخل الأوبجكت (order_tax.amount) وإذا لم توجد نأخذ القيمة القديمة
-  const taxValue = saleData.order_tax?.amount || saleData.tax_amount || 0;
-  const discountValue = saleData.order_discount?.amount || saleData.discount || 0;
+  const taxValue = Number(
+    pricingDetails.tax_amount || saleData.tax_amount || frontendTaxAmount || 0,
+  );
 
-  // 5. حساب المجموع الفرعي (Subtotal) يدوياً من المنتجات
-  // لأن sale.total في الرد القادم هو المبلغ النهائي وليس الفرعي
-  const calculatedSubtotal = itemsList.reduce((acc, item) => {
-    return acc + (Number(item.subtotal) || (Number(item.price) * Number(item.quantity)) || 0);
-  }, 0);
+  const serviceFeesValue = Number(
+    pricingDetails.service_fee_total ||
+      saleData.service_fee_total ||
+      serviceFeesFromAPI ||
+      0,
+  );
 
-  // استخراج رقم الفاتورة اليومي بدقة والرقم المرجعي
-  const dailyNum = (saleData.daily_order_number !== undefined && saleData.daily_order_number !== null)
-    ? saleData.daily_order_number
-    : (saleData.dailyOrderNumber !== undefined && saleData.dailyOrderNumber !== null)
-      ? saleData.dailyOrderNumber
-      : (saleData.daily_count !== undefined && saleData.daily_count !== null)
-        ? saleData.daily_count
-        : (saleData.reference || saleData._id || "1");
-
-  const refNum = saleData.reference || saleData.reference_number || saleData.referenceNo || "";
-
-  return {
-    // البيانات الأساسية (رقم الفاتورة اليومي المتسلسل)
-    invoiceNumber: dailyNum,
-    referenceNumber: refNum,
-    dateFormatted: dateFormatted,
-    timeFormatted: timeFormatted,
-    orderType: detectedType,
-
-    // بيانات المحل
-    restaurantName: storeData.name || "اسم المتجر",
-    restaurantAddress: storeData.address || "",
-    restaurantPhone: storeData.phone || "",
-    receiptFooter: sessionStorage.getItem("receipt_footer") || "شكراً لزيارتكم",
-
-    // بيانات العميل
-    customer: {
-      name: customerData.name || "عميل نقدي",
-      phone: customerData.phone_number || "",
-      email: customerData.email || ""
-    },
-    address: saleData.address || null,
-
-    // المنتجات
-    items: (itemsList && itemsList.length > 0)
+  const formattedItems =
+    itemsList && itemsList.length > 0
       ? itemsList.map((item, idx) => {
-          const matchedOrderItem = orderItems?.find((oi) =>
-            (oi.product_price_id && String(oi.product_price_id) === String(item.product_price_id?._id || item.product_price_id)) ||
-            (String(oi._id || oi.product_id) === String(item.product_id?._id || item.product_id))
-          ) || orderItems?.[idx];
+          const matchedOrderItem =
+            orderItems?.find(
+              (oi) =>
+                oi.product_price_id &&
+                String(oi.product_price_id) ===
+                  String(item.product_price_id?._id || item.product_price_id),
+            ) || orderItems?.[idx];
 
-          const varName = matchedOrderItem?.variant_name || (() => {
+          const varNameFromCode = (() => {
             if (!item.product_price_id?.code) return "";
-            const parts = item.product_price_id.code.split('_');
-            return parts.length > 1 ? parts.slice(1).join(' ') : "";
+            const parts = item.product_price_id.code.split("_");
+            return parts.length > 1 ? parts.slice(1).join(" ") : "";
           })();
+          const varName =
+            varNameFromCode || matchedOrderItem?.variant_name || "";
+
+          const qty = Number(item.quantity || 1);
+          const price = Number(item.price || matchedOrderItem?.price || 0);
+          const total = Number(item.subtotal || price * qty);
 
           return {
-            qty: item.quantity,
-            name: item.product_id?.name || matchedOrderItem?.name || "منتج غير معروف",
+            qty: qty,
+            name:
+              item.product_id?.name ||
+              matchedOrderItem?.name ||
+              "منتج غير معروف",
             nameAr: item.product_id?.ar_name || matchedOrderItem?.ar_name || "",
-            price: Number(item.price || matchedOrderItem?.price || 0),
-            total: Number(item.subtotal || (Number(item.price || matchedOrderItem?.price || 0) * Number(item.quantity || 1))),
-            notes: matchedOrderItem?.notes || "",
+            price: price,
+            total: total,
+            notes: item.notes || matchedOrderItem?.notes || "",
             addons: [],
             extras: [],
             variations: varName ? [{ name: varName }] : [],
           };
         })
-      : (orderItems || []).map((item) => ({
-          qty: item.count || item.quantity || 1,
-          name: item.name || "منتج",
-          nameAr: item.ar_name || "",
-          price: Number(item.price || 0),
-          total: Number(item.totalPrice || (item.price * (item.count || 1))),
-          notes: item.notes || "",
-          addons: [],
-          extras: [],
-          variations: item.variant_name ? [{ name: item.variant_name }] : [],
-        })),
+      : (orderItems || []).map((item) => {
+          const qty = Number(item.count || item.quantity || 1);
+          const price = Number(item.price || 0);
+          const total = Number(item.totalPrice || price * qty);
 
-    // الحسابات المالية (محدثة)
-    subtotal: calculatedSubtotal.toFixed(2), // المجموع المحسوب من العناصر
-    discount: Number(discountValue).toFixed(2), // الخصم من الأوبجكت الجديد
-    tax: Number(taxValue).toFixed(2),           // الضريبة من الأوبجكت الجديد
-    deliveryFees: Number(saleData.shipping || 0).toFixed(2),
-    
-    // الإجمالي النهائي
-    total: Number(saleData.grand_total || saleData.total || 0).toFixed(2),
+          return {
+            qty: qty,
+            name: item.name || "منتج",
+            nameAr: item.ar_name || "",
+            price: price,
+            total: total,
+            notes: item.notes || "",
+            addons: [],
+            extras: [],
+            variations: item.variant_name ? [{ name: item.variant_name }] : [],
+          };
+        });
 
-    // حقول إضافية
-    serviceFees: 0,
+  const calculatedSubtotal = formattedItems.reduce(
+    (acc, item) => acc + Number(item.total || 0),
+    0,
+  );
+
+  const dailyNum =
+    saleData.daily_order_number ??
+    saleData.dailyOrderNumber ??
+    saleData.daily_count ??
+    rawResponse.nextInvoiceNumber ??
+    rootData.nextInvoiceNumber ??
+    saleData._id ??
+    "1";
+
+  const refNum =
+    saleData.reference ||
+    saleData.reference_number ||
+    saleData.referenceNo ||
+    "";
+
+  return {
+    invoiceNumber: dailyNum,
+    referenceNumber: refNum,
+    dateFormatted: dateFormatted,
+    timeFormatted: timeFormatted,
+    orderType: orderType || "sale",
+
+    restaurantName: storeData.name || "اسم المتجر",
+    restaurantAddress: storeData.address || "",
+    restaurantPhone: storeData.phone || "",
+    receiptFooter: sessionStorage.getItem("receipt_footer") || "شكراً لزيارتكم",
+
+    customer: {
+      name: customerData.name || "عميل نقدي",
+      phone: customerData.phone_number || customerData.phone || "",
+      email: customerData.email || "",
+    },
+    address: saleData.address || null,
+
+    items: formattedItems,
+
+    subtotal: calculatedSubtotal.toFixed(2),
+    discount: discountValue.toFixed(2),
+    tax: taxValue.toFixed(2),
+    serviceFees: serviceFeesValue.toFixed(2),
+
+    total: Number(
+      pricingDetails.grand_total ||
+        saleData.grand_total ||
+        saleData.total ||
+        requiredTotal ||
+        amountToPay ||
+        0,
+    ).toFixed(2),
+
     table: "N/A",
     preparationNum: null,
   };
 };
 
 // ===================================================================
-// 9. دالة الطباعة
+// 6. دالة الطباعة (Web — iframe مخفي)
 // ===================================================================
 export const printReceiptSilently = async (
   receiptData,
   apiResponse,
-  callback
+  callback,
 ) => {
   try {
     const cashierHtml = getReceiptHTML(receiptData, {
@@ -525,80 +808,25 @@ export const printReceiptSilently = async (
       type: "cashier",
     });
 
-    const fallbackToBrowserPrint = () => {
-      const printWindow = window.open("", "_blank", "width=400,height=600");
-      if (!printWindow) {
-        toast.error("برجاء تفعيل النوافذ المنبثقة (Pop-ups) للطباعة");
-        callback();
-        return;
-      }
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Receipt</title>
-            <style>
-              @media print {
-                @page { margin: 0; }
-                body { margin: 0; }
-              }
-            </style>
-          </head>
-          <body>
-            ${cashierHtml}
-            <script>
-              setTimeout(() => {
-                window.print();
-                window.close();
-              }, 500);
-            </script>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
-      callback();
-    };
-
-    if (!qz.websocket.isActive()) {
-      fallbackToBrowserPrint();
-      return;
-    }
-
-    const printJobs = [];
-
-    // 1. طباعة فاتورة الكاشير (للعميل)
-    try {
-      const cashierPrinterName = await qz.printers.getDefault();
-      if (!cashierPrinterName) throw new Error("No default printer found.");
-      
-      const cashierConfig = qz.configs.create(cashierPrinterName);
-
-      printJobs.push(
-        qz.print(cashierConfig, [
-          { type: "html", format: "plain", data: cashierHtml },
-        ])
-      );
-    } catch (err) {
-      console.error("Print error:", err);
-      fallbackToBrowserPrint();
-      return;
-    }
-
-    await Promise.all(printJobs);
-    toast.success("✅ تم الطباعة");
-    callback();
+    printHTMLViaIframe(cashierHtml, { onDone: callback });
   } catch (err) {
-    console.error(err);
+    console.error("Print error:", err);
     toast.error("❌ فشل الطباعة");
-    callback();
+    callback?.();
   }
 };
 
+// ===================================================================
+// 7. دوال إعدادات الطابعة
+// ===================================================================
 export const addPrinterConfig = (key, config) => {
   PRINTER_CONFIG[key] = config;
 };
+
 export const getActivePrinters = () => {
   return Object.keys(PRINTER_CONFIG);
 };
+
 export const updatePrinterConfig = (key, updates) => {
   if (PRINTER_CONFIG[key])
     PRINTER_CONFIG[key] = { ...PRINTER_CONFIG[key], ...updates };

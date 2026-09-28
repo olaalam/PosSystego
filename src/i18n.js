@@ -523,6 +523,11 @@ const resources = {
       MaxStockReached: "Maximum available stock reached",
       TotalItemsCount: "Total: {{count}} items",
       ItemsSelected: "items selected",
+      "Checkout&Whatsapp": "Checkout & WhatsApp",
+      CheckoutOnly: "Checkout Only",
+      "Checkout&Print": "Checkout & Print",
+      OrderSentViaWhatsapp: "Order summary prepared for WhatsApp",
+      SentViaWhatsapp: "WhatsApp",
     },
   },
   ar: {
@@ -1049,6 +1054,11 @@ const resources = {
       MaxStockReached: "تم الوصول للحد الأقصى للكمية المتاحة في المخزن",
       TotalItemsCount: "إجمالي: {{count}} قطع",
       ItemsSelected: "قطع مختارة",
+      "Checkout&Whatsapp": "دفع وواتساب",
+      CheckoutOnly: "دفع فقط",
+      "Checkout&Print": "دفع وطباعة",
+      OrderSentViaWhatsapp: "تم تجهيز رسالة الواتساب بنجاح",
+      SentViaWhatsapp: "واتساب",
     },
   },
 };

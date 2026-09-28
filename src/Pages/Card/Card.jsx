@@ -44,7 +44,8 @@ export default function Card({
   const [selectedPaymentItems, setSelectedPaymentItems] = useState([]);
   const [bulkStatus, setBulkStatus] = useState("");
   const [itemLoadingStates, setItemLoadingStates] = useState({});
-  const [shouldPrintReceipt, setShouldPrintReceipt] = useState(true); // ← جديد
+  const [shouldPrintReceipt, setShouldPrintReceipt] = useState(true);
+  const [shouldSendWhatsapp, setShouldSendWhatsapp] = useState(false);
   // Preset discount values from card panel
   const [presetFreeDiscount, setPresetFreeDiscount] = useState("");
   const [presetDiscountId, setPresetDiscountId] = useState(null);
@@ -146,9 +147,15 @@ export default function Card({
   };
 
   // Handlers
-  const handleCheckOut = (print = true) => {
-    setShouldPrintReceipt(print);   // نحفظ هل نطبع أم لا
-    setShowModal(true);             // نفتح المودال
+  const handleCheckOut = (options = true) => {
+    if (typeof options === "object" && options !== null) {
+      setShouldPrintReceipt(!!options.print);
+      setShouldSendWhatsapp(!!options.whatsapp);
+    } else {
+      setShouldPrintReceipt(!!options);
+      setShouldSendWhatsapp(false);
+    }
+    setShowModal(true); // نفتح المودال
   };
 
   const handleClearAllItems = () => {
@@ -489,6 +496,7 @@ export default function Card({
           selectedPaymentItemIds={selectedPaymentItems}
           service_fees={calculations.totalOtherCharge}
           shouldPrintReceipt={shouldPrintReceipt}
+          shouldSendWhatsapp={shouldSendWhatsapp}
           initialFreeDiscount={presetFreeDiscount}
           initialDiscountId={presetDiscountId}
           initialAppliedDiscount={presetAppliedDiscount}

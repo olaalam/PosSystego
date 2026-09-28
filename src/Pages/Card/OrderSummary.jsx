@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import SummaryRow from "./SummaryRow";
 import Loading from "@/components/Loading";
 import { Phone, CreditCard, PrinterIcon, ChevronDown, ChevronRight, Tag } from "lucide-react";
+import { FaWhatsapp } from "react-icons/fa";
 import { useGet } from "@/Hooks/useGet";
 import { usePost } from "@/Hooks/usePost";
 import { toast } from "react-toastify";
@@ -303,17 +304,22 @@ function CheckoutDiscountPanel({
     (orderType === "dine_in" && selectedPaymentCount === 0);
 
   const handleCheckoutMain = () => {
-    onCheckout(false);
+    onCheckout({ print: false, whatsapp: false });
     setShowCheckoutDropdown(false);
   };
 
   const handleCheckoutWithPrint = () => {
-    onCheckout(true);
+    onCheckout({ print: true, whatsapp: false });
     setShowCheckoutDropdown(false);
   };
 
   const handleCheckoutWithoutPrint = () => {
-    onCheckout(false);
+    onCheckout({ print: false, whatsapp: false });
+    setShowCheckoutDropdown(false);
+  };
+
+  const handleCheckoutWithWhatsapp = () => {
+    onCheckout({ print: false, whatsapp: true });
     setShowCheckoutDropdown(false);
   };
 
@@ -391,20 +397,27 @@ function CheckoutDiscountPanel({
 
           {/* Dropdown Menu */}
           {showCheckoutDropdown && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden">
+            <div className="absolute top-full start-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden min-w-full w-max">
               <button
                 onClick={handleCheckoutWithPrint}
-                className="w-full flex items-center gap-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-all border-b border-gray-100"
+                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all border-b border-gray-100 whitespace-nowrap text-start"
               >
-                <PrinterIcon size={15} className="text-gray-500" />
-                <span>{t("Checkout&Print") || "Checkout & Print"}</span>
+                <PrinterIcon size={15} className="text-gray-500 shrink-0" />
+                <span className="whitespace-nowrap">{t("Checkout&Print") || "Checkout & Print"}</span>
               </button>
               <button
                 onClick={handleCheckoutWithoutPrint}
-                className="w-full flex items-center gap-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-all"
+                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all border-b border-gray-100 whitespace-nowrap text-start"
               >
-                <CreditCard size={15} className="text-gray-500" />
-                <span>{t("CheckoutOnly") || "Checkout Only"}</span>
+                <CreditCard size={15} className="text-gray-500 shrink-0" />
+                <span className="whitespace-nowrap">{t("CheckoutOnly") || "Checkout Only"}</span>
+              </button>
+              <button
+                onClick={handleCheckoutWithWhatsapp}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all whitespace-nowrap text-start"
+              >
+                <FaWhatsapp size={16} className="text-green-600 shrink-0" />
+                <span className="whitespace-nowrap">{t("Checkout&Whatsapp") || "Checkout & WhatsApp"}</span>
               </button>
             </div>
           )}
