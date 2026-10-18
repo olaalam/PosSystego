@@ -774,14 +774,15 @@ const CheckOut = ({
           if (shouldPrintReceipt) {
             printReceiptSilently(receiptData, response, () => {
               completeOrder();
-              toast.success(t("OrderCompletedSuccessfully"));
+              toast.success(`${t("OrderCompletedSuccessfully")} — Ref: ${response?.sale?.reference || receiptData?.referenceNumber || ""}`);
             });
           } else {
             completeOrder();
-            toast.success(t("OrderCompletedSuccessfully"));
+            toast.success(`${t("OrderCompletedSuccessfully")} — Ref: ${response?.sale?.reference || receiptData?.referenceNumber || ""}`);
           }
         } else {
           completeOrder();
+          toast.success(`${t("OrderCompletedSuccessfully")} — Ref: ${response?.sale?.reference || ""}`);
         }
       } else {
         toast.error(response?.message || t("FailedToProcessOrder"));
