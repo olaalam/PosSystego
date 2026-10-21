@@ -41,6 +41,7 @@ const computeBackendGrandTotal = ({
   couponData,
   taxData,
   giftCardAmount = 0,
+  freeDiscountAmount = 0,
   serviceFeeTotal = 0,
   shipping = 0,
 }) => {
@@ -62,6 +63,18 @@ const computeBackendGrandTotal = ({
         : roundCurrency(Number(couponData.amount || 0));
   }
 
+  // ✅ الخصم اليدوي (Free discount) — نفس منطق الباك إند
+  const requestedFreeDiscount = roundCurrency(
+    Math.max(0, Number(freeDiscountAmount) || 0),
+  );
+  const maxFreeDiscount = Math.max(
+    0,
+    roundCurrency(sub - discountAmount - couponAmount),
+  );
+  const appliedFreeDiscount = roundCurrency(
+    Math.min(requestedFreeDiscount, maxFreeDiscount),
+  );
+
   let taxAmount = 0;
   if (taxData) {
     taxAmount =
@@ -74,6 +87,7 @@ const computeBackendGrandTotal = ({
     sub -
     discountAmount -
     couponAmount -
+    appliedFreeDiscount -
     Number(giftCardAmount || 0) +
     Number(serviceFeeTotal || 0) +
     taxAmount +
@@ -81,6 +95,8 @@ const computeBackendGrandTotal = ({
 
   return {
     discountAmount,
+    freeDiscountAmount: appliedFreeDiscount,
+    totalDiscountAmount: roundCurrency(discountAmount + appliedFreeDiscount),
     couponAmount,
     taxAmount,
     grandTotal: roundCurrency(Math.max(0, raw)),
@@ -99,11 +115,12 @@ const CheckOut = ({
   shouldSendWhatsapp = false,
   initialFreeDiscount = "",
   initialDiscountId = null,
+  initialDiscountData = null,
   initialAppliedDiscount = 0,
   initialDiscountCode = "",
 }) => {
   const cashierId = sessionStorage.getItem("cashier_id");
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
 
   const { data: groupData } = useGet("cashier/group_product");
@@ -143,10 +160,12 @@ const CheckOut = ({
   // ═══════════════════════════════════════════════════════════
   const { data: discountsData } = useGet("api/admin/discount");
   const availableDiscounts = useMemo(() => {
+    // الـ API بيرجّع { success, data: { message, discounts: [...] } }
     const raw =
+      discountsData?.data?.discounts ||
       discountsData?.data?.data ||
-      discountsData?.data ||
       discountsData?.discounts ||
+      (Array.isArray(discountsData?.data) ? discountsData.data : null) ||
       [];
     return Array.isArray(raw) ? raw : [];
   }, [discountsData]);
@@ -186,6 +205,13 @@ const CheckOut = ({
       return;
     }
 
+    // ✅ لو القائمة لسه بتحمّل: استخدم نفس بيانات الخصم المختار من الكارت
+    if (initialDiscountData?.type) {
+      setAppliedDiscountData(initialDiscountData);
+      console.log("✅ Discount loaded from cart selection:", initialDiscountData);
+      return;
+    }
+
     if (initialAppliedDiscount && Number(initialAppliedDiscount) > 0) {
       let normalizedAmount = Number(initialAppliedDiscount);
       if (normalizedAmount > 1) normalizedAmount = normalizedAmount / 100;
@@ -201,16 +227,15 @@ const CheckOut = ({
       return;
     }
 
-    // fallback: 10%
-    console.warn(
-      "⚠️ Discount not found, using default 10%:",
-      selectedDiscountId,
-    );
-    setAppliedDiscountData({
-      type: "percentage",
-      amount: 0.1,
-    });
-  }, [selectedDiscountId, availableDiscounts, initialAppliedDiscount]);
+    // مفيش بيانات خصم → مفيش خصم (مش بنفترض 10% غلط)
+    console.warn("⚠️ Discount not found in list:", selectedDiscountId);
+    setAppliedDiscountData(null);
+  }, [
+    selectedDiscountId,
+    availableDiscounts,
+    initialAppliedDiscount,
+    initialDiscountData,
+  ]);
 
   const { postData, loading } = usePost();
 
@@ -308,6 +333,7 @@ const CheckOut = ({
       couponData: appliedCouponData,
       taxData: selectedTaxData,
       giftCardAmount: 0,
+      freeDiscountAmount: freeDiscount, // ✅ الخصم اليدوي
       serviceFeeTotal: serviceFeesTotal, // ✅ بنضيفها
       shipping: 0,
     });
@@ -324,6 +350,7 @@ const CheckOut = ({
     appliedCouponData,
     selectedTaxData,
     serviceFeesTotal,
+    freeDiscount,
   ]);
 
   const requiredTotal = computed.requiredTotal;
@@ -433,12 +460,12 @@ const CheckOut = ({
       paymentSplits.length === 0 &&
       requiredTotal > 0
     ) {
-      const visaAccount = financialAccounts.find((acc) =>
-        acc.name?.toLowerCase().includes("visa"),
-      );
-      const defaultAccountId = visaAccount
-        ? visaAccount._id
-        : financialAccounts[0]._id;
+      // الأولوية لحساب Cash في كل الفروع
+      const defaultAccount =
+        financialAccounts.find((acc) =>
+          /cash|كاش|نقدي/i.test(`${acc.name || ""} ${acc.ar_name || ""}`),
+        ) || financialAccounts[0];
+      const defaultAccountId = defaultAccount._id;
       setPaymentSplits([
         {
           _id: "split-1",
@@ -710,7 +737,7 @@ const CheckOut = ({
         free_discount: freeDiscountValue > 0 ? freeDiscountValue : undefined,
         due_module: dueModuleValue > 0 ? dueModuleValue.toFixed(2) : undefined,
         password: forcedPassword || pendingFreeDiscountPassword || undefined,
-        coupon_code: appliedCouponData ? discountCode : undefined,
+        coupon_code: discountCode || undefined,
         service_fee_ids: serviceFeeIds, // ✅ بنبعتها للباك
       });
     }
@@ -785,11 +812,19 @@ const CheckOut = ({
           toast.success(`${t("OrderCompletedSuccessfully")} — Ref: ${response?.sale?.reference || ""}`);
         }
       } else {
+        // لو الخصم اليدوي اترفض، لازم المستخدم يدخل الباسورد تاني
+        setPendingFreeDiscountPassword("");
         toast.error(response?.message || t("FailedToProcessOrder"));
       }
     } catch (e) {
       console.error("Submit error:", e);
-      toast.error(e.message || t("SubmissionFailed"));
+      setPendingFreeDiscountPassword("");
+      const message =
+        e?.response?.data?.error?.message ||
+        e?.response?.data?.message ||
+        e?.message ||
+        t("SubmissionFailed");
+      toast.error(message);
     }
   };
 
@@ -1121,6 +1156,7 @@ const CheckOut = ({
           )}
 
           {(computed.discountAmount > 0 ||
+            computed.freeDiscountAmount > 0 ||
             computed.couponAmount > 0 ||
             computed.serviceFeesTotal > 0) && (
             <div className="mb-3 p-3 bg-gray-50 border border-gray-100 rounded-xl text-sm space-y-1">
@@ -1133,6 +1169,16 @@ const CheckOut = ({
                   </span>
                   <span className="text-red-500">
                     -{computed.discountAmount.toFixed(2)} {t("EGP")}
+                  </span>
+                </div>
+              )}
+              {computed.freeDiscountAmount > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">
+                    {i18n.language === "ar" ? "خصم يدوي" : "Manual Discount"}
+                  </span>
+                  <span className="text-red-500">
+                    -{computed.freeDiscountAmount.toFixed(2)} {t("EGP")}
                   </span>
                 </div>
               )}
@@ -1201,7 +1247,6 @@ const CheckOut = ({
         onConfirm={(password) => {
           setPendingFreeDiscountPassword(password);
           setPasswordModalOpen(false);
-          toast.success(t("PasswordAccepted"));
 
           proceedWithOrderSubmission(
             isDueOrder ? 1 : 0,

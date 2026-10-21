@@ -102,6 +102,15 @@ export default function OrdersView() {
                     {orderDate} — {orderTime}
                   </p>
 
+                  {Number(order.discount ?? order.discount_amount ?? 0) > 0 && (
+                    <div className="flex items-center justify-between text-sm bg-rose-50 text-rose-600 rounded-lg px-3 py-1.5">
+                      <span className="font-semibold">{t("Discount")}</span>
+                      <span className="font-bold">
+                        -{Number(order.discount ?? order.discount_amount).toFixed(2)} EGP
+                      </span>
+                    </div>
+                  )}
+
                   <div className="space-y-1">
                     <p className="text-sm font-semibold text-gray-700">
                       {t("Items")} ({items.length}):

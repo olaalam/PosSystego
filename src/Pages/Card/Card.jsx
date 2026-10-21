@@ -49,6 +49,7 @@ export default function Card({
   // Preset discount values from card panel
   const [presetFreeDiscount, setPresetFreeDiscount] = useState("");
   const [presetDiscountId, setPresetDiscountId] = useState(null);
+  const [presetDiscountData, setPresetDiscountData] = useState(null);
   const [presetAppliedDiscount, setPresetAppliedDiscount] = useState(0);
   const [presetDiscountCode, setPresetDiscountCode] = useState("");
   // Void Modal States
@@ -375,6 +376,7 @@ export default function Card({
         taxDetails={calculations.taxDetails}
         totalAmountDisplay={calculations.totalAmountDisplay}
         amountToPay={calculations.amountToPay}
+        discountBase={calculations.discountBase}
         selectedPaymentCount={selectedPaymentItems.length}
         onCheckout={handleCheckOut}
         onSaveAsPending={() => orderActions.handleSaveAsPending(calculations.amountToPay, calculations.order_tax)}
@@ -388,6 +390,7 @@ export default function Card({
         tableId={tableId}
         onSetFreeDiscount={setPresetFreeDiscount}
         onSetDiscountId={setPresetDiscountId}
+        onSetDiscountData={setPresetDiscountData}
         onSetAppliedDiscount={setPresetAppliedDiscount}
         onSetDiscountCode={setPresetDiscountCode}
         presetDiscountId={presetDiscountId}
@@ -499,6 +502,7 @@ export default function Card({
           shouldSendWhatsapp={shouldSendWhatsapp}
           initialFreeDiscount={presetFreeDiscount}
           initialDiscountId={presetDiscountId}
+          initialDiscountData={presetDiscountData}
           initialAppliedDiscount={presetAppliedDiscount}
           initialDiscountCode={presetDiscountCode}
         />

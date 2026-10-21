@@ -278,6 +278,7 @@ function CheckoutDiscountPanel({
   amountToPay,
   onSetFreeDiscount,
   onSetDiscountId,
+  onSetDiscountData,
   onSetAppliedDiscount,
   onSetDiscountCode,
   t,
@@ -339,17 +340,23 @@ function CheckoutDiscountPanel({
     try {
       const response = await validateCoupon("api/admin/pos/apply-coupon", {
         coupon_code: discountCodeInput.trim(),
-        grand_total: amountToPay,
+        grand_total: discountBase || subTotal || amountToPay,
       });
       if (response?.success) {
         const couponData = response.data?.coupon;
         if (couponData) {
+          // ✅ نسبة الخصم بتتحسب على سعر المنتجات فقط (نفس الباك إند)
+          const base = Number(discountBase || subTotal || amountToPay) || 0;
           let discountPercentage = 0;
           if (couponData.type === "percentage") {
-            discountPercentage = couponData.amount;
+            discountPercentage = Number(couponData.amount) || 0;
           } else {
-            discountPercentage = (couponData.amount / amountToPay) * 100;
+            discountPercentage = base > 0 ? (Number(couponData.amount) / base) * 100 : 0;
           }
+          // الكوبون والخصم المختار من القائمة ما يشتغلوش مع بعض
+          onSetDiscountId?.(null);
+          onSetDiscountData?.(null);
+          setSelectedDiscountLocal("0");
           onSetAppliedDiscount?.(discountPercentage);
           onSetDiscountCode?.(discountCodeInput.trim());
           toast.success(t("DiscountAppliedSuccess", { appliedDiscount: couponData.amount }));
@@ -366,6 +373,20 @@ function CheckoutDiscountPanel({
 
   const handleSelectChange = (val) => {
     setSelectedDiscountLocal(val);
+
+    // ✅ نبعت بيانات الخصم نفسه للـ Checkout (نفس القيمة اللي الكارت حسبها)
+    const selected = discountList.find((d) => String(d._id) === String(val));
+    if (selected) {
+      let amount = Number(selected.amount) || 0;
+      if (selected.type === "percentage" && amount > 1) amount = amount / 100;
+      onSetDiscountData?.({ type: selected.type, amount });
+    } else {
+      onSetDiscountData?.(null);
+    }
+
+    // اختيار خصم من القائمة يلغي الكوبون
+    onSetAppliedDiscount?.(0);
+    onSetDiscountCode?.("");
     onSetDiscountId?.(val === "0" ? null : val);
   };
 
@@ -557,6 +578,7 @@ export default function OrderSummary({
   taxDetails,
   totalAmountDisplay,
   amountToPay,
+  discountBase,
   selectedPaymentCount,
   onCheckout,
   onSaveAsPending,
@@ -570,6 +592,7 @@ export default function OrderSummary({
   onPrint: externalOnPrint,
   onSetFreeDiscount,
   onSetDiscountId,
+  onSetDiscountData,
   onSetAppliedDiscount,
   onSetDiscountCode,
   // discount preview props
@@ -632,7 +655,8 @@ export default function OrderSummary({
     amountToPay,
     presetDiscountId,
     presetAppliedDiscount,
-    presetFreeDiscount
+    presetFreeDiscount,
+    discountBase
   );
 
   const restaurantInfo = {
@@ -753,6 +777,7 @@ export default function OrderSummary({
           amountToPay={amountToPay}
           onSetFreeDiscount={onSetFreeDiscount}
           onSetDiscountId={onSetDiscountId}
+          onSetDiscountData={onSetDiscountData}
           onSetAppliedDiscount={onSetAppliedDiscount}
           onSetDiscountCode={onSetDiscountCode}
           t={t}

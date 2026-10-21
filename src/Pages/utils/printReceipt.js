@@ -575,6 +575,15 @@ const formatCashierReceipt = (receiptData) => {
                 <span>${Number(receiptData.discount || 0) > 0 ? "-" : ""}${Number(receiptData.discount || 0).toFixed(2)}</span>
             </div>
 
+            ${Number(receiptData.coupon || 0) > 0
+              ? `
+            <!-- ✅ Coupon Discount -->
+            <div class="totals-row" style="color: #000;">
+                <span>${isArabic ? "خصم الكوبون" : "Coupon Discount"}</span>
+                <span>-${Number(receiptData.coupon || 0).toFixed(2)}</span>
+            </div>`
+              : ""}
+
             <!-- ✅ Tax — دايماً بيظهر -->
             <div class="totals-row">
                 <span>${isArabic ? "الضريبة" : "Tax"}</span>
@@ -669,6 +678,10 @@ export const prepareReceiptData = (
 
   const taxValue = Number(
     pricingDetails.tax_amount || saleData.tax_amount || frontendTaxAmount || 0,
+  );
+
+  const couponValue = Number(
+    pricingDetails.coupon_amount || saleData.coupon_amount || 0,
   );
 
   const serviceFeesValue = Number(
@@ -777,6 +790,7 @@ export const prepareReceiptData = (
 
     subtotal: calculatedSubtotal.toFixed(2),
     discount: discountValue.toFixed(2),
+    coupon: couponValue.toFixed(2),
     tax: taxValue.toFixed(2),
     serviceFees: serviceFeesValue.toFixed(2),
 
