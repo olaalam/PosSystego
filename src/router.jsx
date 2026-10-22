@@ -21,6 +21,8 @@ import OnlineTabs from "./Pages/OnlineOrders/OnlineTabs";
 import ReturnSalePage from "./Pages/Return/ReturnSalePage";
 import ReturnsListPage from "./Pages/Return/returns";
 import ProductDetails from "./Pages/Details/Productdetails";
+import WarehouseReport from "./Pages/Reports/WarehouseReport";
+import WarehouseTransfers from "./Pages/Transfers/WarehouseTransfers";
 
 const router = createBrowserRouter(
   [
@@ -214,6 +216,22 @@ const router = createBrowserRouter(
          element: (
            <ProtectedRoute>
              <ReturnsListPage />
+           </ProtectedRoute>
+         ),
+       },
+       {
+         path: "/reports/warehouse",
+         element: (
+           <ProtectedRoute>
+             <WarehouseReport />
+           </ProtectedRoute>
+         ),
+       },
+       {
+         path: "/transfers",
+         element: (
+           <ProtectedRoute>
+             <WarehouseTransfers />
            </ProtectedRoute>
          ),
        }

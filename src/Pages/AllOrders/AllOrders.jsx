@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogClose,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -16,71 +16,68 @@ import VoidOrderModal from "./VoidOrderModal";
 import { printReceiptSilently } from "@/Pages/utils/printReceipt";
 
 export default function AllOrders() {
-  const [showModal, setShowModal] = useState(true);
-  const [password, setPassword] = useState("");
-  const [orders, setOrders] = useState([]);
-  const [search, setSearch] = useState("");
-  const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [showModal, setShowModal] = useState(true);
+  const [password, setPassword] = useState("");
+  const [orders, setOrders] = useState([]);
+  const [search, setSearch] = useState("");
+  const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
 
-  // Void Modal States
-  const [showVoidModal, setShowVoidModal] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState(null);
+  // Void Modal States
+  const [showVoidModal, setShowVoidModal] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
 
-  // Print States
-  const [isPrinting, setIsPrinting] = useState(false);
+  // Print States
+  const [isPrinting, setIsPrinting] = useState(false);
 
   const { t, i18n } = useTranslation();
   const isArabic = i18n.language === "ar";
 
   const { postData, loading } = usePost();
 
-  const handlePasswordSubmit = async () => {
-    if (!password.trim()) return toast.error(t("Pleaseenteryourpassword"));
+  const handlePasswordSubmit = async () => {
+    if (!password.trim()) return toast.error(t("Pleaseenteryourpassword"));
 
-    try {
-      const res = await postData("api/admin/pos/sales/complete", { password });
+    try {
+      const res = await postData("api/admin/pos/sales/complete", { password });
 
-      // *** التعديل: استخدام res?.data?.orders ***
-      if (res?.data?.sales) {
-        setOrders(res.data.sales);
-        setShowModal(false);
-        toast.success(t("Accessgrantedsuccessfully"));
-      } else {
-        toast.error(t("Incorrectpassword"));
-      }
-    } catch (err) {
-      toast.error(t("totheserver"));
-      console.error(err);
-    }
-  };
+      if (res?.data?.sales) {
+        setOrders(res.data.sales);
+        setShowModal(false);
+        toast.success(t("Accessgrantedsuccessfully"));
+      } else {
+        toast.error(t("Incorrectpassword"));
+      }
+    } catch (err) {
+      toast.error(t("totheserver"));
+      console.error(err);
+    }
+  };
 
-  // Handle Void Click
-  const handleVoidClick = (order) => {
-    setSelectedOrder(order);
-    setShowVoidModal(true);
-  };
+  // Handle Void Click
+  const handleVoidClick = (order) => {
+    setSelectedOrder(order);
+    setShowVoidModal(true);
+  };
 
-  // Handle Void Success - Refresh Orders
-  const handleVoidSuccess = async () => {
-    try {
-      // *** التعديل: استخدام مسار نقطة البيع للحصول على نفس البيانات وتطبيق res?.data?.orders ***
-      const res = await postData("api/admin/pos/sales/complete", { password }); 
-      
+  // Handle Void Success - Refresh Orders
+  const handleVoidSuccess = async () => {
+    try {
+      const res = await postData("api/admin/pos/sales/complete", { password }); 
+      
       if (res?.data?.sales) {
         setOrders(res.data.sales);
         toast.success(t("Ordersrefreshedsuccessfully"));
       } else {
-        console.error("Refresh Error: Invalid response structure");
-      }
-    } catch (err) {
-      console.error("Refresh Error:", err);
-      toast.error(t("Failedtorefreshorders") || "فشل في تحديث الطلبات");
-    }
-  };
+        console.error("Refresh Error: Invalid response structure");
+      }
+    } catch (err) {
+      console.error("Refresh Error:", err);
+      toast.error(t("Failedtorefreshorders") || "فشل في تحديث الطلبات");
+    }
+  };
 
   // =========================================================
   // بناء بيانات الفاتورة من بيانات الـ Sale
-  // (نفس فاتورة الكاشير اللي بتتطبع من الـ Checkout)
   // =========================================================
   const buildReceiptDataFromSale = (sale) => {
     const dateObj = new Date(sale.date || sale.createdAt || Date.now());
@@ -148,7 +145,7 @@ export default function AllOrders() {
     };
   };
 
-  // Handle Print Click — يطبع من نفس بيانات الـ Sale مباشرة
+  // Handle Print Click
   const handlePrintClick = (order) => {
     if (isPrinting) return;
     setIsPrinting(true);
@@ -166,7 +163,7 @@ export default function AllOrders() {
     }
   };
 
-const filteredOrders = useMemo(() => {
+  const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
       const rawDate = order.date || order.createdAt || order.updatedAt;
       const orderDate = rawDate ? new Date(rawDate).toISOString().split("T")[0] : "";
@@ -176,91 +173,117 @@ const filteredOrders = useMemo(() => {
     });
   }, [orders, search, date]);
 
-  return (
-    <div className="p-4" dir={isArabic ? "rtl" : "ltr"}>
-      {/* Password Modal */}
-      <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-          <DialogClose
-            asChild
-            onClick={() => setShowModal(false)}
-            className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
-          >
-            <button aria-label="Close">
-              <X className="w-5 h-5" />
-            </button>
-          </DialogClose>
+  // حساب إجمالي المبلغ المجمع (grand_total) للطلبات المفلترة
+  const totalAmountSum = useMemo(() => {
+    return filteredOrders.reduce((sum, order) => {
+      return sum + Number(order.grand_total ?? order.total ?? 0);
+    }, 0);
+  }, [filteredOrders]);
 
-          <DialogHeader>
-            <DialogTitle>{t("EnterPassword")}</DialogTitle>
-          </DialogHeader>
+  return (
+    <div className="p-4" dir={isArabic ? "rtl" : "ltr"}>
+      {/* Password Modal */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+          <DialogClose
+            asChild
+            onClick={() => setShowModal(false)}
+            className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+          >
+            <button aria-label="Close">
+              <X className="w-5 h-5" />
+            </button>
+          </DialogClose>
 
-          <Input
-            type="password"
-            placeholder={t("Password")}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handlePasswordSubmit()}
-          />
+          <DialogHeader>
+            <DialogTitle>{t("EnterPassword")}</DialogTitle>
+          </DialogHeader>
 
-          <Button
-            onClick={handlePasswordSubmit}
-            disabled={loading}
-            className="mt-3 w-full"
-          >
-            {loading ? t("Loading") : t("Login")}
-          </Button>
-        </DialogContent>
-      </Dialog>
+          <Input
+            type="password"
+            placeholder={t("Password")}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handlePasswordSubmit()}
+          />
 
-      {!showModal && (
-        <>
-          {/* Filters */}
-          <div className="flex flex-col sm:flex-row gap-2 mb-4">
-            <Input
-              placeholder={t("SearchByOrderNumber")}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="sm:w-1/3"
-            />
-            <Input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="sm:w-1/3"
-            />
-          </div>
+          <Button
+            onClick={handlePasswordSubmit}
+            disabled={loading}
+            className="mt-3 w-full"
+          >
+            {loading ? t("Loading") : t("Login")}
+          </Button>
+        </DialogContent>
+      </Dialog>
 
-          {/* Orders Table */}
-          <div className="overflow-x-auto rounded-lg shadow-md border" dir={isArabic ? "rtl" : "ltr"}>
-            <table className="min-w-full border-collapse">
-              <thead className="bg-gray-100 text-gray-700">
-                <tr>
-                  <th className={`border p-3 ${isArabic ? "text-right" : "text-left"}`}>
-                    {t("OrderNumber")}
-                  </th>
+      {!showModal && (
+        <>
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row gap-2 mb-4">
+            <Input
+              placeholder={t("SearchByOrderNumber")}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="sm:w-1/3"
+            />
+            <Input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="sm:w-1/3"
+            />
+          </div>
+
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div className="bg-white p-4 rounded-lg shadow-md border flex flex-col justify-between">
+              <span className="text-gray-500 text-sm font-medium">
+                {isArabic ? "إجمالي الطلبات" : "Total Orders"}
+              </span>
+              <span className="text-2xl font-bold text-gray-800 mt-1">
+                {filteredOrders.length}
+              </span>
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow-md border flex flex-col justify-between">
+              <span className="text-gray-500 text-sm font-medium">
+                {isArabic ? "إجمالي المبلغ" : "Total Amount"}
+              </span>
+              <span className="text-2xl font-bold text-emerald-600 mt-1">
+                {totalAmountSum.toFixed(2)}
+              </span>
+            </div>
+          </div>
+
+          {/* Orders Table */}
+          <div className="overflow-x-auto rounded-lg shadow-md border" dir={isArabic ? "rtl" : "ltr"}>
+            <table className="min-w-full border-collapse">
+              <thead className="bg-gray-100 text-gray-700">
+                <tr>
+                  <th className={`border p-3 ${isArabic ? "text-right" : "text-left"}`}>
+                    {t("OrderNumber")}
+                  </th>
                   <th className={`border p-3 ${isArabic ? "text-right" : "text-left"}`}>
                     {t("Amount")}
                   </th>
                   <th className={`border p-3 ${isArabic ? "text-right" : "text-left"}`}>
                     {t("Discount")}
                   </th>
-
                   <th className={`border p-3 ${isArabic ? "text-right" : "text-left"}`}>
                     {t("Branch")}
                   </th>
-                  <th className={`border p-3 ${isArabic ? "text-right" : "text-left"}`}>
-                    {t("DateTime")}
-                  </th>
-                  <th className={`border p-3 ${isArabic ? "text-right" : "text-left"}`}>
-                    {t("Print")}
-                  </th>
-                  <th className={`border p-3 ${isArabic ? "text-right" : "text-left"}`}>
-                    {t("Void")}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
+                  <th className={`border p-3 ${isArabic ? "text-right" : "text-left"}`}>
+                    {t("DateTime")}
+                  </th>
+                  <th className={`border p-3 ${isArabic ? "text-right" : "text-left"}`}>
+                    {t("Print")}
+                  </th>
+                  <th className={`border p-3 ${isArabic ? "text-right" : "text-left"}`}>
+                    {t("Void")}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
                 {filteredOrders.map((order) => (
                   <tr key={order._id || order.reference} className="hover:bg-gray-50 transition-colors">
                     <td className={`border p-3 ${isArabic ? "text-right" : "text-left"}`}>
@@ -307,54 +330,54 @@ const filteredOrders = useMemo(() => {
                         isArabic ? "ar-EG" : "en-US",
                       )}
                     </td>
-                    {/* Print Button */}
-                    <td className="border p-3 text-center">
-                      <button
-                        onClick={() => handlePrintClick(order)}
-                        disabled={isPrinting}
-                        className={`text-blue-600 hover:text-blue-800 transition-colors p-2 rounded-lg hover:bg-blue-50 ${
-                          isPrinting ? 'opacity-50 cursor-not-allowed' : ''
-                        }`}
-                        title={t("PrintOrder")}
-                      >
-                        <Printer className="w-5 h-5" />
-                      </button>
-                    </td>
-                    {/* Void Button */}
-                    <td className="border p-3 text-center">
-                      <button
-                        onClick={() => handleVoidClick(order)}
-                        className="text-purple-600 hover:text-purple-800 transition-colors p-2 rounded-lg hover:bg-purple-50"
-                        title={t("VoidOrder")}
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    {/* Print Button */}
+                    <td className="border p-3 text-center">
+                      <button
+                        onClick={() => handlePrintClick(order)}
+                        disabled={isPrinting}
+                        className={`text-blue-600 hover:text-blue-800 transition-colors p-2 rounded-lg hover:bg-blue-50 ${
+                          isPrinting ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                        title={t("PrintOrder")}
+                      >
+                        <Printer className="w-5 h-5" />
+                      </button>
+                    </td>
+                    {/* Void Button */}
+                    <td className="border p-3 text-center">
+                      <button
+                        onClick={() => handleVoidClick(order)}
+                        className="text-purple-600 hover:text-purple-800 transition-colors p-2 rounded-lg hover:bg-purple-50"
+                        title={t("VoidOrder")}
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-          {filteredOrders.length === 0 && (
-            <p className="text-center text-gray-500 mt-6">
-              {t("NoOrdersFoundForThisDate")}
-            </p>
-          )}
-        </>
-      )}
+          {filteredOrders.length === 0 && (
+            <p className="text-center text-gray-500 mt-6">
+              {t("NoOrdersFoundForThisDate")}
+            </p>
+          )}
+        </>
+      )}
 
-      {/* Void Order Modal */}
-      <VoidOrderModal
-        isOpen={showVoidModal}
-        onClose={() => {
-          setShowVoidModal(false);
-          setSelectedOrder(null);
-        }}
+      {/* Void Order Modal */}
+      <VoidOrderModal
+        isOpen={showVoidModal}
+        onClose={() => {
+          setShowVoidModal(false);
+          setSelectedOrder(null);
+        }}
         orderId={selectedOrder?._id}
-        orderNumber={selectedOrder?.reference}
-        onSuccess={handleVoidSuccess}
-      />
-    </div>
-  );
+        orderNumber={selectedOrder?.reference}
+        onSuccess={handleVoidSuccess}
+      />
+    </div>
+  );
 }
