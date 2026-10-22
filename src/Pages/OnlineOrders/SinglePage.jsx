@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { FaClock, FaUser, FaWhatsapp, FaCopy } from "react-icons/fa";
 import { Dialog, DialogBackdrop, DialogPanel } from "@headlessui/react";
@@ -20,11 +20,12 @@ const [showTransferModal, setShowTransferModal] = useState(false);
 const [selectedBranchId, setSelectedBranchId] = useState(null);
 
 // 🟢 جلب قائمة الـ Branches
-const { 
-  data: branchesData, 
-  isLoading: loadingBranches, 
-  refetch: fetchBranches 
-} = useGet(null, { useCache: true });
+// ملاحظة: من غير كاش عشان أي فرع جديد أو فرع اتفتح يظهر فوراً عند فتح المودال
+const {
+  data: branchesData,
+  isLoading: loadingBranches,
+  refetch: fetchBranches
+} = useGet(null);
 
 // 🟢 جلب الـ branches عند فتح الـ Modal
 
@@ -42,7 +43,15 @@ useEffect(() => {
   }
 }, [showTransferModal, fetchBranches]);
 
-const branches = branchesData?.branches || branchesData?.data || [];
+// 🟢 دعم كل أشكال الـ response المحتملة: { branches } / { data } / { data: { branches } }
+const branches = useMemo(() => {
+  const raw =
+    branchesData?.branches ??
+    branchesData?.data?.branches ??
+    branchesData?.data ??
+    branchesData;
+  return Array.isArray(raw) ? raw : [];
+}, [branchesData]);
 
   const { postData, loadingPost, response } = usePost();
 
