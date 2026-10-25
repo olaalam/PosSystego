@@ -23,6 +23,7 @@ import ReturnsListPage from "./Pages/Return/returns";
 import ProductDetails from "./Pages/Details/Productdetails";
 import WarehouseReport from "./Pages/Reports/WarehouseReport";
 import WarehouseTransfers from "./Pages/Transfers/WarehouseTransfers";
+import InstallmentsPage from "./Pages/Installments/InstallmentsPage";
 
 const router = createBrowserRouter(
   [
@@ -177,6 +178,14 @@ const router = createBrowserRouter(
           element: (
             <ProtectedRoute>
               <DueUsers />
+            </ProtectedRoute>
+          ),
+        },
+        {
+          path: "installments",
+          element: (
+            <ProtectedRoute>
+              <InstallmentsPage />
             </ProtectedRoute>
           ),
         },

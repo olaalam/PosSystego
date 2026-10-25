@@ -247,20 +247,36 @@ const CheckOut = ({
   const [customerSearchQuery, setCustomerSearchQuery] = useState("");
 
   const {
-    data: dueUsersData,
+    data: customersData,
     isLoading: customerSearchLoading,
-    refetch: refetchDueUsers,
-  } = useGet("api/admin/pos-home/due-customers");
+    refetch: refetchCustomers,
+  } = useGet("api/admin/pos-home/customers");
+
+  // 🔎 بحث في كل العملاء (اسم / تليفون) مع debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      refetchCustomers(
+        `api/admin/pos-home/customers?search=${encodeURIComponent(
+          customerSearchQuery,
+        )}`,
+      ).catch(() => {});
+    }, 300);
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerSearchQuery]);
 
   const searchResults = useMemo(() => {
-    const customers =
-      dueUsersData?.data?.data || dueUsersData?.data?.dueCustomers || [];
+    const customers = customersData?.data?.data || [];
+    if (!Array.isArray(customers)) return [];
+
     return customers.filter(
       (c) =>
+        !customerSearchQuery ||
         c.name?.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
         c.phone_number?.includes(customerSearchQuery),
     );
-  }, [dueUsersData, customerSearchQuery]);
+  }, [customersData, customerSearchQuery]);
 
   const selectedTaxData = useMemo(() => {
     if (!selectedTaxId || !taxesData?.data?.taxes) return null;
@@ -362,6 +378,86 @@ const CheckOut = ({
   const [discountError, setDiscountError] = useState(null);
   const [isCheckingDiscount, setIsCheckingDiscount] = useState(false);
 
+  // ═══════════════════════════════════════════════════════════
+  // 🆕 الدفع بالتقسيط
+  // ═══════════════════════════════════════════════════════════
+  const [isInstallmentOrder, setIsInstallmentOrder] = useState(false);
+  const [installmentMonths, setInstallmentMonths] = useState(3);
+  const [installmentDownPayment, setInstallmentDownPayment] = useState("");
+  const [installmentSchedule, setInstallmentSchedule] = useState(null);
+  const [installmentPreviewError, setInstallmentPreviewError] = useState(null);
+  const { postData: previewInstallmentPost } = usePost();
+
+  const { data: installmentSettingsRes } = useGet(
+    "api/admin/pos/installments/settings",
+  );
+  const installmentSettings = installmentSettingsRes?.data?.settings;
+  const installmentEnabled = installmentSettings?.enabled !== false;
+  const maxInstallmentMonths = Number(
+    installmentSettings?.max_installments || 12,
+  );
+  const minDownPaymentPercent = Number(
+    installmentSettings?.min_down_payment_percent || 0,
+  );
+
+  // المبلغ المطلوب تحصيله الآن (مقدم التقسيط، أو إجمالي الفاتورة في الدفع الكامل)
+  const installmentPayTarget = useMemo(() => {
+    if (!isInstallmentOrder) return roundCurrency(requiredTotal);
+    const down = Number(installmentDownPayment) || 0;
+    return roundCurrency(
+      Math.max(0, Math.min(down, Math.max(0, requiredTotal - 0.01))),
+    );
+  }, [isInstallmentOrder, installmentDownPayment, requiredTotal]);
+
+  // 🧮 معاينة الخطة من الباك (نفس الحساب اللي هيتطبق فعلاً)
+  useEffect(() => {
+    if (!isInstallmentOrder) {
+      setInstallmentSchedule(null);
+      setInstallmentPreviewError(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await previewInstallmentPost(
+          "api/admin/pos/installments/preview",
+          {
+            total: requiredTotal,
+            months: Number(installmentMonths),
+            down_payment: Number(installmentDownPayment) || 0,
+          },
+        );
+
+        if (!cancelled) {
+          setInstallmentSchedule(res?.data?.plan || null);
+          setInstallmentPreviewError(null);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setInstallmentSchedule(null);
+          setInstallmentPreviewError(
+            err?.response?.data?.error?.message ||
+              err?.response?.data?.message ||
+              t("installments.checkout.previewFailed"),
+          );
+        }
+      }
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    isInstallmentOrder,
+    installmentMonths,
+    installmentDownPayment,
+    requiredTotal,
+  ]);
+
   const totalDiscountValue = useMemo(
     () => roundCurrency(rawSubtotal - taxableAmount),
     [rawSubtotal, taxableAmount],
@@ -402,22 +498,22 @@ const CheckOut = ({
       (acc, split) => acc + (parseFloat(split.amount) || 0),
       0,
     );
-    const calculatedRemaining = requiredTotal - sum;
-    const calculatedChange = sum - requiredTotal;
+    const calculatedRemaining = installmentPayTarget - sum;
+    const calculatedChange = sum - installmentPayTarget;
     return {
       totalScheduled: roundCurrency(sum),
       remainingAmount:
         calculatedRemaining > 0 ? roundCurrency(calculatedRemaining) : 0,
       changeAmount: calculatedChange > 0 ? roundCurrency(calculatedChange) : 0,
     };
-  }, [paymentSplits, requiredTotal]);
+  }, [paymentSplits, installmentPayTarget]);
 
   const calculatedChange = useMemo(() => {
     const paid = parseFloat(customerPaid) || 0;
     return paid > requiredTotal ? roundCurrency(paid - requiredTotal) : 0;
   }, [customerPaid, requiredTotal]);
 
-  const isTotalMet = totalScheduled >= requiredTotal;
+  const isTotalMet = totalScheduled >= installmentPayTarget;
 
   const { accounts: fetchedAccounts } = usePosSelections();
 
@@ -458,7 +554,7 @@ const CheckOut = ({
     if (
       financialAccounts?.length > 0 &&
       paymentSplits.length === 0 &&
-      requiredTotal > 0
+      installmentPayTarget > 0
     ) {
       // الأولوية لحساب Cash في كل الفروع
       const defaultAccount =
@@ -470,13 +566,13 @@ const CheckOut = ({
         {
           _id: "split-1",
           account_id: defaultAccountId,
-          amount: requiredTotal,
+          amount: installmentPayTarget,
           checkout: "",
           transition_id: "",
         },
       ]);
     }
-  }, [financialAccounts, requiredTotal, paymentSplits.length]);
+  }, [financialAccounts, installmentPayTarget, paymentSplits.length]);
 
   // Auto-update single split
   useEffect(() => {
@@ -485,18 +581,18 @@ const CheckOut = ({
         if (
           prev.length === 1 &&
           prev[0]._id === "split-1" &&
-          prev[0].amount !== requiredTotal
+          prev[0].amount !== installmentPayTarget
         ) {
           return prev.map((split) =>
             split._id === "split-1"
-              ? { ...split, amount: requiredTotal || 0 }
+              ? { ...split, amount: installmentPayTarget || 0 }
               : split,
           );
         }
         return prev;
       });
     }
-  }, [requiredTotal]);
+  }, [installmentPayTarget]);
 
   const handleApplyDiscount = async () => {
     if (!discountCode) {
@@ -664,7 +760,7 @@ const CheckOut = ({
   };
 
   const buildExactFinancials = () => {
-    const target = roundCurrency(requiredTotal);
+    const target = roundCurrency(installmentPayTarget);
 
     const lines = paymentSplits
       .filter((s) => Number(s.amount) > 0)
@@ -742,6 +838,15 @@ const CheckOut = ({
       });
     }
 
+    // 🆕 الدفع بالتقسيط
+    if (isInstallmentOrder && payload) {
+      payload.payment_type = "installment";
+      payload.installment = {
+        months: Number(installmentMonths),
+        down_payment: roundCurrency(Number(installmentDownPayment) || 0),
+      };
+    }
+
     const financialsSum = roundCurrency(
       financialsPayload.reduce((s, f) => s + Number(f.amount), 0),
     );
@@ -765,7 +870,17 @@ const CheckOut = ({
       });
 
       if (response?.success) {
-        toast.success(Due === 1 ? t("DueOrderCreated") : t("OrderPlaced"));
+        const planNumber =
+          response?.data?.installment_plan?.plan_number ||
+          response?.installment_plan?.plan_number;
+
+        toast.success(
+          Due === 1
+            ? t("DueOrderCreated")
+            : planNumber
+              ? t("installments.checkout.created", { number: planNumber })
+              : t("OrderPlaced"),
+        );
         setPendingFreeDiscountPassword("");
 
         const completeOrder = () => {
@@ -844,11 +959,18 @@ const CheckOut = ({
   };
 
   const handleSubmitOrder = async () => {
-    if (!isTotalMet || totalScheduled === 0) {
+    if (!isTotalMet) {
+      return toast.error(
+        t("TotalMustEqual", { amount: installmentPayTarget.toFixed(2) }),
+      );
+    }
+
+    if (!isInstallmentOrder && totalScheduled === 0) {
       return toast.error(
         t("TotalMustEqual", { amount: requiredTotal.toFixed(2) }),
       );
     }
+
     const validation = validatePaymentSplits(
       paymentSplits,
       getDescriptionStatus,
@@ -859,25 +981,86 @@ const CheckOut = ({
     if (isDueOrder) {
       if (!selectedCustomer) {
         setCustomerSelectionOpen(true);
-        refetchDueUsers();
+        refetchCustomers();
         return;
       }
       return;
     }
+
+    // 🆕 التحقق قبل إنشاء فاتورة التقسيط
+    if (isInstallmentOrder) {
+      if (!selectedCustomer) {
+        setCustomerSelectionOpen(true);
+        refetchCustomers();
+        return;
+      }
+
+      if (!installmentEnabled) {
+        return toast.error(t("installments.checkout.notEnabled"));
+      }
+
+      if (!installmentMonths || Number(installmentMonths) < 1) {
+        return toast.error(t("installments.checkout.monthsRequired"));
+      }
+
+      const down = Number(installmentDownPayment) || 0;
+      if (down >= requiredTotal) {
+        return toast.error(t("installments.checkout.downPaymentTooHigh"));
+      }
+
+      const minDown = roundCurrency(
+        (requiredTotal * minDownPaymentPercent) / 100,
+      );
+      if (down < minDown) {
+        return toast.error(
+          t("installments.checkout.minDownPayment", {
+            amount: minDown.toFixed(2),
+            percent: minDownPaymentPercent,
+          }),
+        );
+      }
+
+      if (!installmentSchedule) {
+        return toast.error(t("installments.checkout.previewPending"));
+      }
+
+      return proceedWithOrderSubmission(0, selectedCustomer._id);
+    }
+
     await proceedWithOrderSubmission(0);
   };
 
   const handleCardSelect = (accountId) => {
     if (accountId === "due") {
       setIsDueOrder(true);
+      setIsInstallmentOrder(false);
       return;
     }
     setIsDueOrder(false);
+
+    // 🆕 اختيار الدفع بالتقسيط
+    if (accountId === "installment") {
+      setIsInstallmentOrder(true);
+      setPaymentSplits([]);
+
+      if (!installmentDownPayment) {
+        const defaultDown =
+          minDownPaymentPercent > 0
+            ? String(
+                roundCurrency((requiredTotal * minDownPaymentPercent) / 100),
+              )
+            : "0";
+        setInstallmentDownPayment(defaultDown);
+      }
+      return;
+    }
 
     if (accountId === "split") {
       handleAddSplit();
       return;
     }
+
+    setIsInstallmentOrder(false);
 
     if (paymentSplits.length === 1) {
       handleAccountChange(paymentSplits[0]._id, accountId);
@@ -998,6 +1181,23 @@ const CheckOut = ({
               <span className="text-xs font-medium">{t("Due") || "Due"}</span>
             </button>
 
+            {installmentEnabled && (
+              <button
+                onClick={() => handleCardSelect("installment")}
+                className={`flex flex-col items-center justify-center gap-1 rounded-xl border-2 py-4 px-2 transition-all
+                  ${
+                    isInstallmentOrder
+                      ? "border-amber-500 bg-amber-50 text-amber-700"
+                      : "border-gray-200 bg-white text-amber-600 hover:border-amber-300 hover:bg-amber-50"
+                  }`}
+              >
+                <span className="text-2xl">🧾</span>
+                <span className="text-xs font-medium">
+                  {t("installments.checkout.option")}
+                </span>
+              </button>
+            )}
+
             <button
               onClick={() => handleCardSelect("split")}
               className={`flex flex-col items-center justify-center gap-1 rounded-xl border-2 py-4 px-2 transition-all
@@ -1013,6 +1213,157 @@ const CheckOut = ({
               </span>
             </button>
           </div>
+
+          {/* 🆕 خطة التقسيط */}
+          {isInstallmentOrder && (
+            <div className="mb-4 p-3 bg-amber-50 rounded-xl border border-amber-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-amber-800">
+                  {t("installments.checkout.heading")}
+                </p>
+                <span className="text-[11px] text-amber-700">
+                  {installmentSettings?.interest_type === "fixed"
+                    ? t("installments.checkout.interestFixed", {
+                        value: installmentSettings?.interest_value || 0,
+                      })
+                    : t("installments.checkout.interestPercent", {
+                        value: installmentSettings?.interest_value || 0,
+                      })}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-600 w-24">
+                  {t("installments.checkout.months")}
+                </label>
+                <select
+                  value={installmentMonths}
+                  onChange={(e) =>
+                    setInstallmentMonths(Number(e.target.value))
+                  }
+                  className="flex-1 text-sm border border-gray-300 rounded-lg px-2 py-1.5 bg-white"
+                >
+                  {Array.from(
+                    { length: maxInstallmentMonths },
+                    (_, i) => i + 1,
+                  ).map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-600 w-24">
+                  {t("installments.checkout.downPayment")}
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={installmentDownPayment}
+                  onChange={(e) => setInstallmentDownPayment(e.target.value)}
+                  className="flex-1 text-sm border border-gray-300 rounded-lg px-2 py-1.5"
+                  placeholder="0"
+                />
+                <span className="text-xs text-gray-500">{t("EGP")}</span>
+              </div>
+
+              {installmentPreviewError ? (
+                <p className="text-xs text-red-600">
+                  {installmentPreviewError}
+                </p>
+              ) : installmentSchedule ? (
+                <div className="text-xs text-gray-700 space-y-1">
+                  <div className="flex justify-between">
+                    <span>{t("installments.checkout.financed")}</span>
+                    <span>
+                      {Number(
+                        installmentSchedule.financed_amount || 0,
+                      ).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>{t("installments.checkout.interest")}</span>
+                    <span>
+                      {Number(
+                        installmentSchedule.interest_amount || 0,
+                      ).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between font-semibold text-amber-800">
+                    <span>{t("installments.checkout.totalPayable")}</span>
+                    <span>
+                      {Number(
+                        installmentSchedule.total_payable || 0,
+                      ).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>{t("installments.checkout.monthly")}</span>
+                    <span>
+                      {Number(
+                        installmentSchedule.installments?.[0]?.amount || 0,
+                      ).toFixed(2)}
+                      {installmentSchedule.installments?.length > 1 &&
+                        Math.abs(
+                          Number(installmentSchedule.installments[0].amount) -
+                            Number(
+                              installmentSchedule.installments[
+                                installmentSchedule.installments.length - 1
+                              ].amount,
+                            ),
+                        ) > 0.001 && (
+                          <span className="text-gray-500">
+                            {" "}
+                            → {Number(
+                              installmentSchedule.installments[
+                                installmentSchedule.installments.length - 1
+                              ].amount,
+                            ).toFixed(2)}
+                          </span>
+                        )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between font-semibold text-teal-700">
+                    <span>{t("installments.checkout.dueNow")}</span>
+                    <span>{installmentPayTarget.toFixed(2)}</span>
+                  </div>
+
+                  {installmentSchedule.installments?.length > 0 && (
+                    <details className="pt-1">
+                      <summary className="cursor-pointer text-amber-700">
+                        {t("installments.checkout.showSchedule")}
+                      </summary>
+                      <ul className="mt-1 space-y-0.5 max-h-32 overflow-y-auto">
+                        {installmentSchedule.installments.map((item) => (
+                          <li
+                            key={item.sequence}
+                            className="flex justify-between"
+                          >
+                            <span>
+                              {t("installments.checkout.installmentItem", {
+                                number: item.sequence,
+                              })}{" "}
+                              —{" "}
+                              {new Date(item.due_date).toLocaleDateString(
+                                i18n.language === "ar" ? "ar-EG" : "en-GB",
+                              )}
+                            </span>
+                            <span>{Number(item.amount).toFixed(2)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500">
+                  {t("installments.checkout.calculating")}
+                </p>
+              )}
+            </div>
+          )}
 
           {paymentSplits.length > 1 && (
             <div className="mb-4 space-y-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
@@ -1232,7 +1583,11 @@ const CheckOut = ({
                 ? selectedCustomer
                   ? t("DueOrderReady")
                   : t("SelectCustomer") || "Select Customer"
-                : t("PayNow") || "PAY NOW"}
+                : isInstallmentOrder
+                  ? selectedCustomer
+                    ? t("installments.checkout.confirm")
+                    : t("SelectCustomer") || "Select Customer"
+                  : t("PayNow") || "PAY NOW"}
           </Button>
         </div>
       </div>

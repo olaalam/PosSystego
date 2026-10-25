@@ -16,6 +16,7 @@ import {
   PackageX,
   Warehouse,
   ArrowLeftRight,
+  CreditCard,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -263,6 +264,7 @@ export default function Navbar() {
   };
 
   const handleDueUsers = () => navigate("/due");
+  const handleInstallments = () => navigate("/installments");
   const handleAllOrders = () => navigate("/all-orders");
   const handleWarehouseReport = () => navigate("/reports/warehouse");
   const handleWarehouseTransfers = () => navigate("/transfers");
@@ -539,6 +541,16 @@ export default function Navbar() {
                   <Users className="w-4 h-4 text-gray-400" />
                   <span className="text-sm font-semibold text-gray-600">
                     Due Users
+                  </span>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={handleInstallments}
+                  className="flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:bg-gray-50"
+                >
+                  <CreditCard className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm font-semibold text-gray-600">
+                    {t("Installments") || "الأقساط"}
                   </span>
                 </DropdownMenuItem>
 
