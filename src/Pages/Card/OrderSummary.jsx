@@ -699,7 +699,7 @@ export default function OrderSummary({
 
         {["dine_in", "take_away"].includes(orderType) && totalOtherCharge > 0 && (
           <SummaryRow
-            label={`${t("Service Fee")} (${serviceFeeData?.amount || 0}${serviceFeeData?.type === "fixed" ? " EGP" : "%"
+            label={`${t("ServiceFee")} (${serviceFeeData?.amount || 0}${serviceFeeData?.type === "fixed" ? " EGP" : "%"
               })`}
             value={totalOtherCharge}
           />
@@ -755,7 +755,7 @@ export default function OrderSummary({
               className="bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold h-11 rounded-xl flex-1 transition-all"
               disabled={isLoading}
             >
-              {isLoading ? <Loading /> : <><CreditCard size={15} className="mr-1.5" />Apply Offer & Checkout</>}
+              {isLoading ? <Loading /> : <><CreditCard size={15} className="mr-1.5" />{t("ApplyOfferAndCheckout")}</>}
             </Button>
             <Button
               onClick={offerManagement.cancelApprovedOffer}

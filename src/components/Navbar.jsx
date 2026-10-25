@@ -6,6 +6,7 @@ import { useShift } from "@/context/ShiftContext";
 import { toast } from "react-toastify";
 import {
   User,
+  UserPlus,
   ListOrdered,
   Users,
   DollarSign,
@@ -58,7 +59,7 @@ import { useGet } from "@/Hooks/useGet";
 import { usePosSelections } from "@/Hooks/usePosSelections";
 import AddCustomer from "@/Pages/Customer/AddCustomer";
 import logo from "@/assets/logo.png";
-import { FaListAlt, FaUsers } from "react-icons/fa";
+import { FaListAlt, FaUsers, FaUndo } from "react-icons/fa";
 import AddWasted from "@/Pages/Wasted/AddWasted";
 
 // ===============================================
@@ -88,22 +89,22 @@ function CustomerSearchCombobox({ customers, selectedCustomer, onSelect, onClear
                       ? ` (${selectedCustomerObj.phone_number})`
                       : ""
                   }`
-                : t("Select Customer")}
+                : t("SelectCustomer")}
             </span>
             <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />
           </Button>
         </PopoverTrigger>
 
-        <PopoverContent className="w-[260px] p-0">
+        <PopoverContent className="w-[260px] p-0" dir="ltr">
           <Command
             filter={(value, search) => {
               if (!search) return 1;
               return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
             }}
           >
-            <CommandInput placeholder={t("Search by name or phone")} />
+            <CommandInput placeholder={t("SearchByNameOrPhone")} />
             <CommandList>
-              <CommandEmpty>{t("No customer found")}</CommandEmpty>
+              <CommandEmpty>{t("NoCustomerFound")}</CommandEmpty>
 
               <CommandGroup className="max-h-[200px] overflow-y-auto">
                 {selectedCustomer && (
@@ -115,7 +116,7 @@ function CustomerSearchCombobox({ customers, selectedCustomer, onSelect, onClear
                     }}
                     className="text-red-500 font-medium cursor-pointer"
                   >
-                    ✕ {t("Clear Customer", "Clear Customer")}
+                    ✕ {t("ClearCustomer")}
                   </CommandItem>
                 )}
                 {customers.map((customer) => (
@@ -154,7 +155,7 @@ function CustomerSearchCombobox({ customers, selectedCustomer, onSelect, onClear
         <button
           type="button"
           onClick={onClear}
-          title={t("Clear Customer", "Clear Customer")}
+          title={t("ClearCustomer")}
           className="w-6 h-6 flex items-center justify-center rounded-full text-gray-400 hover:text-red-500 hover:bg-gray-100 transition-colors text-xs font-bold shrink-0"
         >
           ✕
@@ -223,11 +224,10 @@ export default function Navbar() {
   }, [isShiftOpen]);
 
   const toggleLanguage = () => {
-    const newLang = language === "en" ? "ar" : "en";
+    const newLang = i18n.language === "ar" ? "en" : "ar";
     i18n.changeLanguage(newLang);
     setLanguage(newLang);
     localStorage.setItem("language", newLang);
-    document.documentElement.dir = newLang === "ar" ? "rtl" : "ltr";
   };
 
   const formatElapsedTime = () => {
@@ -274,7 +274,7 @@ export default function Navbar() {
   // ===== إغلاق الشيفت بكل الخطوات =====
   const handleCloseShift = () => {
     if (!isShiftOpen) {
-      toast.error(t("No active shift found"));
+      toast.error(t("NoActiveShift"));
       return;
     }
     setShowPasswordModal(true);
@@ -302,7 +302,7 @@ export default function Navbar() {
       setShowReportModal(true);
     } catch (err) {
       const msg =
-        err.response?.data?.message || t("Invalid password or error occurred");
+        err.response?.data?.message || t("InvalidPasswordOrError");
       toast.error(msg);
     } finally {
       setReportLoading(false);
@@ -334,10 +334,10 @@ export default function Navbar() {
       sessionStorage.clear();
       localStorage.removeItem("shiftStatus");
       localStorage.removeItem("shiftStartTime");
-      toast.success(t("Logged out successfully"));
+      toast.success(t("LoggedOutSuccessfully"));
       navigate("/login");
     } catch (err) {
-      toast.error(err?.message || t("Error while logging out"));
+      toast.error(err?.message || t("ErrorWhileLoggingOut"));
     }
   };
 
@@ -346,7 +346,7 @@ export default function Navbar() {
   return (
     <>
       {/* الحاوية الرئيسية للخلفية الرمادية الباهتة */}
-      <div className="w-full shadow-md px-2 py-3 sm:px-4 sm:py-5 md:px-6 z-50 border-b border-gray-100">
+      <div dir="ltr" className="w-full shadow-md px-2 py-3 sm:px-4 sm:py-5 md:px-6 z-50 border-b border-gray-100">
         <div className="flex items-center justify-between gap-1.5 sm:gap-4 max-w-[1920px] mx-auto">
           {/* --- الجزء الأيسر: الأزرار والعملاء --- */}
           <div className="flex items-center gap-4">
@@ -389,7 +389,9 @@ export default function Navbar() {
                     value="return"
                     className="flex flex-col items-center justify-center w-[110px] py-3 rounded-[22px] border border-gray-50 bg-white text-gray-400 data-[state=active]:bg-[#7b61ff] data-[state=active]:text-white transition-all shadow-sm"
                   >
-                    <div className="w-8 h-8 rounded-full border border-current flex items-center justify-center mb-1 opacity-80"></div>
+                    <div className="w-8 h-8 rounded-full border border-current flex items-center justify-center mb-1 opacity-80">
+                      <FaUndo className="text-sm" />
+                    </div>
                     <span className="text-[10px] font-bold uppercase tracking-wider">
                       {t("Return")}
                     </span>
@@ -408,13 +410,14 @@ export default function Navbar() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="start"
+                  dir="ltr"
                   className="w-48 bg-white rounded-xl shadow-xl border-gray-100 p-2"
                 >
                   <DropdownMenuItem
                     onClick={() => handleTabChange("take_away")}
                     className={`flex px-3 py-3 rounded-lg cursor-pointer ${currentTab === "take_away" ? "bg-[#7b61ff] text-white font-bold" : "hover:bg-gray-50 text-gray-700"}`}
                   >
-                    {t("take_away")}
+                    {t("POS")}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => handleTabChange("online-order")}
@@ -451,6 +454,7 @@ export default function Navbar() {
             />
             <button
               onClick={() => setShowCustomerModal(true)}
+              title={t("AddCustomer")}
               className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-2xl bg-white border border-gray-100 text-[#7b61ff] shadow-sm hover:bg-gray-50 transition-all flex-shrink-0"
             >
               <span className="text-2xl font-light">+</span>
@@ -482,7 +486,7 @@ export default function Navbar() {
                     <User className="w-5 h-5" />
                   </div>
                   <span className="text-[9px] font-bold text-gray-400 uppercase mt-1 group-hover:text-[#7b61ff]">
-                    User
+                    {t("User")}
                   </span>
                 </button>
               </DropdownMenuTrigger>
@@ -490,13 +494,14 @@ export default function Navbar() {
               <DropdownMenuContent
                 className="w-64 bg-white rounded-xl shadow-xl border-gray-100 p-2"
                 align="end"
+                dir="ltr"
               >
                 <div className="px-3 py-2">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                    Authenticated as
+                    {t("AuthenticatedAs")}
                   </p>
                   <p className="text-sm font-extrabold text-[#1a1a1a]">
-                    Administrator
+                    {t("Administrator")}
                   </p>
                 </div>
 
@@ -508,7 +513,17 @@ export default function Navbar() {
                 >
                   <User className="w-4 h-4 text-gray-400" />
                   <span className="text-sm font-semibold text-gray-600">
-                    Profile
+                    {t("profile")}
+                  </span>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={() => setShowCustomerModal(true)}
+                  className="flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:bg-gray-50"
+                >
+                  <UserPlus className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm font-semibold text-gray-600">
+                    {t("AddCustomer")}
                   </span>
                 </DropdownMenuItem>
 
@@ -519,7 +534,7 @@ export default function Navbar() {
                   <div className="flex items-center gap-3">
                     <Languages className="w-4 h-4 text-gray-400" />
                     <span className="text-sm font-semibold text-gray-600">
-                      تغيير للعربية
+                      {isArabic ? t("SwitchToEnglish") : t("SwitchToArabic")}
                     </span>
                   </div>
                 </DropdownMenuItem>
@@ -530,7 +545,7 @@ export default function Navbar() {
                 >
                   <ListOrdered className="w-4 h-4 text-gray-400" />
                   <span className="text-sm font-semibold text-gray-600">
-                    AllOrders
+                    {t("AllOrders")}
                   </span>
                 </DropdownMenuItem>
 
@@ -540,7 +555,7 @@ export default function Navbar() {
                 >
                   <Users className="w-4 h-4 text-gray-400" />
                   <span className="text-sm font-semibold text-gray-600">
-                    Due Users
+                    {t("DueUsers")}
                   </span>
                 </DropdownMenuItem>
 
@@ -550,7 +565,7 @@ export default function Navbar() {
                 >
                   <CreditCard className="w-4 h-4 text-gray-400" />
                   <span className="text-sm font-semibold text-gray-600">
-                    {t("Installments") || "الأقساط"}
+                    {t("Installments")}
                   </span>
                 </DropdownMenuItem>
 
@@ -580,7 +595,7 @@ export default function Navbar() {
                 >
                   <DollarSign className="w-4 h-4 text-gray-400" />
                   <span className="text-sm font-semibold text-gray-600">
-                    Expenses
+                    {t("Expenses")}
                   </span>
                 </DropdownMenuItem>
 
@@ -590,7 +605,7 @@ export default function Navbar() {
                 >
                   <PackageX className="w-4 h-4 text-gray-400" />
                   <span className="text-sm font-semibold text-gray-600">
-                    {t("AddWasted", "Add Wasted")}
+                    {t("AddWasted")}
                   </span>
                 </DropdownMenuItem>
 
@@ -602,7 +617,7 @@ export default function Navbar() {
                 >
                   <XCircle className="w-4 h-4 text-red-500" />
                   <span className="text-sm font-bold text-red-600">
-                    Close Shift
+                    {t("closeshift")}
                   </span>
                 </DropdownMenuItem>
 
@@ -612,7 +627,7 @@ export default function Navbar() {
                 >
                   <LogOut className="w-4 h-4 text-gray-400" />
                   <span className="text-sm font-semibold text-gray-500">
-                    Logout
+                    {t("logout")}
                   </span>
                 </DropdownMenuItem>
               </DropdownMenuContent>

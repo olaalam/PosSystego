@@ -125,7 +125,9 @@ export default function ReturnsListPage() {
                         </TableCell>
                         <TableCell>
                           {ret.date
-                            ? new Date(ret.date).toLocaleDateString()
+                            ? new Date(ret.date).toLocaleDateString(
+                                isArabic ? "ar-EG" : "en-GB",
+                              )
                             : "-"}
                         </TableCell>
                         <TableCell>{customerName(ret)}</TableCell>

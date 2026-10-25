@@ -146,7 +146,7 @@ export default function OnlineOrders() {
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
     const date = new Date(dateString);
-    return date.toLocaleDateString("en-GB", {
+    return date.toLocaleDateString(isArabic ? "ar-EG" : "en-GB", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -377,7 +377,7 @@ export default function OnlineOrders() {
                         )}
                         <div className="min-w-0">
                           <div className="text-sm font-medium text-gray-900 truncate max-w-[180px]">
-                            {product?.name || "Deleted Product"}
+                            {product?.name || t("DeletedProduct")}
                           </div>
                           {variantLabel && (
                             <div className="text-xs text-gray-500 truncate max-w-[180px]">
@@ -420,7 +420,7 @@ export default function OnlineOrders() {
                         {order.totalPriceAfterDiscount != null
                           ? Number(order.totalPriceAfterDiscount).toFixed(2)
                           : Number(order.totalOrderPrice || 0).toFixed(2)}{" "}
-                        EGP
+                        {t("EGP")}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -440,7 +440,9 @@ export default function OnlineOrders() {
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold uppercase ${order.orderType === "pickup" ? "bg-teal-50 text-teal-700" : "bg-indigo-50 text-indigo-700"}`}
                       >
-                        {order.orderType?.replace(/_/g, " ") || "N/A"}
+                        {order.orderType
+                          ? t(order.orderType, order.orderType.replace(/_/g, " "))
+                          : "N/A"}
                       </span>
                     </td>
                   </tr>
@@ -487,7 +489,7 @@ export default function OnlineOrders() {
                   <div className="flex justify-between items-start gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="font-semibold text-gray-900 truncate">
-                        {product?.name || "Deleted Product"}
+                        {product?.name || t("DeletedProduct")}
                       </div>
                       {variantLabel && (
                         <div className="text-xs text-gray-500 truncate">
@@ -505,7 +507,7 @@ export default function OnlineOrders() {
                   <div className="text-xs text-gray-600 mt-1">
                     {order.shippingAddress
                       ? `${order.shippingAddress.city}, ${order.shippingAddress.zone}`
-                      : "Pickup"}
+                      : t("Pickup")}
                   </div>
                 </div>
               </div>
@@ -515,7 +517,7 @@ export default function OnlineOrders() {
                   {order.totalPriceAfterDiscount != null
                     ? Number(order.totalPriceAfterDiscount).toFixed(2)
                     : Number(order.totalOrderPrice || 0).toFixed(2)}{" "}
-                  EGP
+                  {t("EGP")}
                 </div>
                 <div className="flex items-center text-gray-600">
                   <MapPin className="w-4 h-4 text-gray-400 mr-1" />
@@ -560,7 +562,7 @@ export default function OnlineOrders() {
               <button
                 onClick={() => setSelectedOrder(null)}
                 className="absolute top-4 right-4 w-9 h-9 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center text-white shadow-lg transition-all"
-                aria-label="Close modal"
+                aria-label={t("Close")}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -590,7 +592,7 @@ export default function OnlineOrders() {
                 </span>
                 {selectedOrder.reference && (
                   <span className="px-3 py-1 rounded-full text-xs font-medium bg-white/15 text-white border border-white/20">
-                    Ref: {selectedOrder.reference}
+                    {t("Reference")}: {selectedOrder.reference}
                   </span>
                 )}
               </div>
@@ -605,7 +607,10 @@ export default function OnlineOrders() {
                     {t("OrderType", "Order Type")}
                   </span>
                   <span className="text-sm font-semibold text-gray-800 uppercase">
-                    {selectedOrder.orderType?.replace(/_/g, " ")}
+                    {t(
+                    selectedOrder.orderType,
+                    selectedOrder.orderType?.replace(/_/g, " "),
+                  )}
                   </span>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex flex-col">
@@ -615,7 +620,7 @@ export default function OnlineOrders() {
                   <span
                     className={`inline-flex w-fit px-2 py-0.5 rounded text-xs font-semibold uppercase ${selectedOrder.paymentStatus === "paid" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}
                   >
-                    {selectedOrder.paymentStatus || "unpaid"}
+                    {t(selectedOrder.paymentStatus || "unpaid")}
                   </span>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex flex-col">
@@ -683,10 +688,10 @@ export default function OnlineOrders() {
 
                           <div className="flex justify-between items-center mt-2 text-sm">
                             <div className="text-gray-500">
-                              {unitPrice.toFixed(2)} EGP × {qty}
+                              {unitPrice.toFixed(2)} {t("EGP")} × {qty}
                             </div>
                             <div className="font-bold text-gray-900">
-                              {(unitPrice * qty).toFixed(2)} EGP
+                              {(unitPrice * qty).toFixed(2)} {t("EGP")}
                             </div>
                           </div>
                         </div>
@@ -718,7 +723,7 @@ export default function OnlineOrders() {
                       {Number(
                         selectedOrder.totalOrderPrice || 0,
                       ).toLocaleString()}{" "}
-                      EGP
+                      {t("EGP")}
                     </span>
                   </div>
                   <div className="flex justify-between py-2">
@@ -726,14 +731,14 @@ export default function OnlineOrders() {
                       {t("ServiceFee", "Service Fee")}
                     </span>
                     <span className="font-medium text-gray-900">
-                      {Number(selectedOrder.serviceFee || 0).toFixed(2)} EGP
+                      {Number(selectedOrder.serviceFee || 0).toFixed(2)} {t("EGP")}
                     </span>
                   </div>
                   {selectedOrder.couponDiscount > 0 && (
                     <div className="flex justify-between py-2 text-green-600">
                       <span>{t("CouponDiscount", "Coupon Discount")}</span>
                       <span className="font-medium">
-                        -{Number(selectedOrder.couponDiscount).toFixed(2)} EGP
+                        -{Number(selectedOrder.couponDiscount).toFixed(2)} {t("EGP")}
                       </span>
                     </div>
                   )}
@@ -743,7 +748,7 @@ export default function OnlineOrders() {
                         {t("ShippingPrice", "Shipping Price")}
                       </span>
                       <span className="font-medium text-gray-900">
-                        {Number(selectedOrder.shippingPrice).toFixed(2)} EGP
+                        {Number(selectedOrder.shippingPrice).toFixed(2)} {t("EGP")}
                       </span>
                     </div>
                   )}
@@ -760,7 +765,7 @@ export default function OnlineOrders() {
                           selectedOrder.totalOrderPrice ??
                           0,
                       ).toFixed(2)}{" "}
-                      EGP
+                      {t("EGP")}
                     </span>
                   </div>
                 </div>

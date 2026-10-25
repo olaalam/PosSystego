@@ -45,7 +45,7 @@ export default function ReturnSalePage() {
   const [returnItems, setReturnItems] = useState([]);
   const [returnNote, setReturnNote] = useState("");
   const [attachedFile, setAttachedFile] = useState(null);
-  const [fileName, setFileName] = useState("No file chosen");
+  const [fileName, setFileName] = useState("");
 
   const [financials, setFinancials] = useState([{ account_id: "", amount: "" }]);
 
@@ -286,7 +286,7 @@ export default function ReturnSalePage() {
               <div>
                 <Label>{t("Date")}</Label>
                 <Input
-                  value={saleData?.date ? new Date(saleData.date).toLocaleString() : "-"}
+                  value={saleData?.date ? new Date(saleData.date).toLocaleString(isArabic ? "ar-EG" : "en-GB") : "-"}
                   readOnly
                   className="bg-gray-100"
                 />
@@ -401,7 +401,7 @@ export default function ReturnSalePage() {
                   </label>
                 </Button>
                 <input id="file-upload" type="file" className="hidden" onChange={handleFileChange} />
-                <span className="text-sm text-gray-600">{fileName}</span>
+                <span className="text-sm text-gray-600">{fileName || t("No file chosen")}</span>
               </div>
             </div>
 
@@ -493,7 +493,7 @@ export default function ReturnSalePage() {
                   setReference("");
                   setReturnNote("");
                   setAttachedFile(null);
-                  setFileName("No file chosen");
+                  setFileName("");
                   setFinancials([{ account_id: "", amount: "" }]);
                 }}
                 disabled={loading}
