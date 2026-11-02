@@ -139,7 +139,7 @@ const CheckOut = ({
     return selectedGroup?.Due === 1;
   })();
 
-  const { data: taxesData } = useGet("api/admin/taxes");
+  const { data: taxesData } = useGet("api/admin/pos-home/taxes");
   const { data: nextInvoiceRes } = useGet(
     "api/admin/pos/sales/next-invoice-number",
   );
@@ -278,9 +278,17 @@ const CheckOut = ({
     );
   }, [customersData, customerSearchQuery]);
 
+  // POS-home taxes endpoint returns { data: [...] }; the admin taxes
+  // endpoint returns { data: { taxes: [...] } }. Normalize both shapes.
+  const taxesList = useMemo(() => {
+    const payload = taxesData?.data;
+    if (Array.isArray(payload)) return payload;
+    return payload?.taxes || [];
+  }, [taxesData]);
+
   const selectedTaxData = useMemo(() => {
-    if (!selectedTaxId || !taxesData?.data?.taxes) return null;
-    const tax = taxesData.data.taxes.find((t) => t._id === selectedTaxId);
+    if (!selectedTaxId) return null;
+    const tax = taxesList.find((t) => t._id === selectedTaxId);
     if (!tax) return null;
 
     let normalizedAmount = Number(tax.amount);
@@ -288,7 +296,7 @@ const CheckOut = ({
       normalizedAmount = normalizedAmount / 100;
     }
     return { type: tax.type, amount: normalizedAmount };
-  }, [selectedTaxId, taxesData]);
+  }, [selectedTaxId, taxesList]);
 
   const rawSubtotal = useMemo(() => {
     if (selectedPaymentItemIds.length > 0) {
@@ -934,6 +942,11 @@ const CheckOut = ({
     } catch (e) {
       console.error("Submit error:", e);
       setPendingFreeDiscountPassword("");
+
+      // Permission errors already show a detailed toast from the axios
+      // interceptor (which module + which action is missing).
+      if (e?.isPermissionError) return;
+
       const message =
         e?.response?.data?.error?.message ||
         e?.response?.data?.message ||
