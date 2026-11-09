@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useGet } from "@/Hooks/useGet";
 import { usePut } from "@/Hooks/usePut";
+import { io } from "socket.io-client";
 
 export default function OnlineOrders() {
   const [orders, setOrders] = useState([]);
@@ -68,6 +69,20 @@ export default function OnlineOrders() {
       setStatusDescription(selectedOrder.statusDescription || "");
     }
   }, [selectedOrder]);
+
+  // 🔌 Real-time: refresh list when an order status changes externally (accept/reject)
+  useEffect(() => {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+    const socket = io(baseUrl, { transports: ["websocket"] });
+    const handler = () => {
+      fetchData("api/admin/pos-online-orders");
+    };
+    socket.on("order_status_changed", handler);
+    return () => {
+      socket.off("order_status_changed", handler);
+      socket.disconnect();
+    };
+  }, [fetchData]);
 
   const filterStatuses = [
     "processing",

@@ -6,6 +6,7 @@ import { usePost } from "@/Hooks/usePost";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { useGet } from "@/Hooks/useGet";
+import { io } from "socket.io-client";
 import Loading from "@/components/Loading";
 import { IoClose, IoSearch } from "react-icons/io5";
 import { usePut } from "@/Hooks/usePut";
@@ -86,6 +87,23 @@ const branches = useMemo(() => {
   useEffect(() => {
     refetchDetailsOrder(); // Refetch data when the component mounts or id or path changes
   }, [refetchDetailsOrder, orderNumPath, id, location.pathname]);
+
+  // 🔌 Real-time: refresh details when an order status changes externally
+  useEffect(() => {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+    const socket = io(baseUrl, { transports: ["websocket"] });
+    const handler = (payload) => {
+      const changedId = payload?.reference || payload?.order_id || payload?.id;
+      if (!changedId || String(changedId) === String(id) || String(changedId) === String(orderNumPath)) {
+        refetchDetailsOrder();
+      }
+    };
+    socket.on("order_status_changed", handler);
+    return () => {
+      socket.off("order_status_changed", handler);
+      socket.disconnect();
+    };
+  }, [id, orderNumPath, refetchDetailsOrder]);
 
 // بدل الـ useEffect الكبير ده كله
 useEffect(() => {
