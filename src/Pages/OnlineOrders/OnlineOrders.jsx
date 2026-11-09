@@ -38,7 +38,7 @@ export default function OnlineOrders() {
   const navigate = useNavigate();
   const isArabic = i18n.language === "ar";
 
-  const { data, isLoading, error } = useGet("api/admin/pos-online-orders");
+  const { data, isLoading, error, refetch } = useGet("api/admin/pos-online-orders");
 
   useEffect(() => {
     if (data) {
@@ -75,14 +75,14 @@ export default function OnlineOrders() {
     const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
     const socket = io(baseUrl, { transports: ["websocket"] });
     const handler = () => {
-      fetchData("api/admin/pos-online-orders");
+      refetch("api/admin/pos-online-orders");
     };
     socket.on("order_status_changed", handler);
     return () => {
       socket.off("order_status_changed", handler);
       socket.disconnect();
     };
-  }, [fetchData]);
+  }, [refetch]);
 
   const filterStatuses = [
     "processing",
